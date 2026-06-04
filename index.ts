@@ -81,13 +81,6 @@ export function renderEditorLinesForStatusline(
 
   if (isBorder(stripAnsi(next[0] ?? ""))) next.shift();
 
-  for (let i = next.length - 1; i >= 0; i--) {
-    if (isBorder(stripAnsi(next[i] ?? ""))) {
-      next.splice(i, 1);
-      break;
-    }
-  }
-
   return next;
 }
 

@@ -16,9 +16,9 @@ describe("statusline placement", () => {
     expect(renderEditorLinesForStatusline(lines, "belowEditor")).toEqual(lines);
   });
 
-  it("strips editor borders when the statusline is above the editor", () => {
+  it("keeps the editor bottom border as a divider when the statusline is above the editor", () => {
     const lines = ["────", "prompt text", "────"];
 
-    expect(renderEditorLinesForStatusline(lines, "aboveEditor")).toEqual(["prompt text"]);
+    expect(renderEditorLinesForStatusline(lines, "aboveEditor")).toEqual(["prompt text", "────"]);
   });
 });
