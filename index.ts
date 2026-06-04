@@ -19,12 +19,14 @@ import { dirname, join } from "node:path";
 
 import { getGitStatus, invalidateGitStatus } from "./git-status.ts";
 import {
+  DEFAULT_STATUS_WIDGET_PLACEMENT,
   type EventsConfig,
   loadEventsConfig,
   setDisplayConfig,
   setLayoutConfig,
   setSubagentsConfig,
   setToastTimeout,
+  type StatusWidgetPlacement,
 } from "./events-config.ts";
 import {
   ICON_SET_DESCRIPTIONS,
@@ -64,10 +66,29 @@ import { emergencyTerminalModeReset, TerminalSplitCompositor } from "./fixed-edi
 
 const PROMPT_PADDING = 0;
 
-export const STATUS_WIDGET_PLACEMENT = "belowEditor" as const;
+export { DEFAULT_STATUS_WIDGET_PLACEMENT } from "./events-config.ts";
 
-export function renderEditorLinesForStatusline(lines: string[]): string[] {
-  return lines;
+export function renderEditorLinesForStatusline(
+  lines: string[],
+  placement: StatusWidgetPlacement = DEFAULT_STATUS_WIDGET_PLACEMENT,
+): string[] {
+  if (placement === "belowEditor") return lines;
+
+  const next = [...lines];
+  const stripAnsi = (s: string) =>
+    s.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\]8;;[^\x07]*\x07/g, "");
+  const isBorder = (s: string) => /^[─━]+\s*$/.test(s);
+
+  if (isBorder(stripAnsi(next[0] ?? ""))) next.shift();
+
+  for (let i = next.length - 1; i >= 0; i--) {
+    if (isBorder(stripAnsi(next[i] ?? ""))) {
+      next.splice(i, 1);
+      break;
+    }
+  }
+
+  return next;
 }
 
 /**
@@ -200,6 +221,7 @@ function makeEditorFactory(
   setActiveTui: (tui: TUI | undefined) => void,
   setCurrentEditor: (editor: any) => void,
   onEditorMounted: (editor: any) => void,
+  getPlacement: () => StatusWidgetPlacement,
 ): EditorFactory {
   return (tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
     setActiveTui(tui);
@@ -217,7 +239,7 @@ function makeEditorFactory(
         const lines = super.render(width);
         if (lines.length === 0) return lines;
 
-        return renderEditorLinesForStatusline(lines);
+        return renderEditorLinesForStatusline(lines, getPlacement());
       }
     }
 
@@ -255,6 +277,7 @@ function installStatusWidget(
   getEventsSnapshot: () => { chips: NotifyStatusEvent[]; toast: ActiveToast | null },
   getIconSet: () => IconSet,
   getLayout: () => LayoutConfig,
+  getPlacement: () => StatusWidgetPlacement,
 ) {
   ctx.ui.setWidget(
     "wierd-statusline",
@@ -273,7 +296,7 @@ function installStatusWidget(
         );
       },
     }),
-    { placement: STATUS_WIDGET_PLACEMENT },
+    { placement: getPlacement() },
   );
 }
 
@@ -528,6 +551,7 @@ export default function (pi: ExtensionAPI) {
   // in lockstep.
   let footerHidden = eventsConfig.display.footerHidden;
   let statuslineEnabled = eventsConfig.display.statuslineEnabled;
+  let statusWidgetPlacement = eventsConfig.display.statusWidgetPlacement;
   let fixedEditorEnabled = eventsConfig.display.fixedEditorEnabled;
   let mouseScrollEnabled = eventsConfig.display.mouseScrollEnabled;
 
@@ -578,6 +602,8 @@ export default function (pi: ExtensionAPI) {
     const snap = eventsTracker.getSnapshot();
     return { chips: snap.chips, toast: snap.toast };
   };
+
+  const getStatusWidgetPlacement = () => statusWidgetPlacement;
 
   const removeStashEntry = (text: string) => {
     const idx = stashedPromptHistory.indexOf(text);
@@ -759,8 +785,7 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  const enableStatusline = (ctx: ExtensionContext) => {
-    currentCtx = ctx;
+  const mountStatusWidget = (ctx: ExtensionContext) => {
     installStatusWidget(
       pi,
       ctx,
@@ -768,8 +793,16 @@ export default function (pi: ExtensionAPI) {
       getEventsSnapshot,
       () => eventsConfig.display.iconSet,
       () => eventsConfig.layout,
+      getStatusWidgetPlacement,
     );
-    ctx.ui.setEditorComponent(makeEditorFactory(ctx, setActiveTui, setCurrentEditor, tryInstallFixedEditor));
+  };
+
+  const enableStatusline = (ctx: ExtensionContext) => {
+    currentCtx = ctx;
+    mountStatusWidget(ctx);
+    ctx.ui.setEditorComponent(
+      makeEditorFactory(ctx, setActiveTui, setCurrentEditor, tryInstallFixedEditor, getStatusWidgetPlacement),
+    );
     if (footerHidden) hidePiFooter(ctx);
     else restorePiFooter(ctx);
 
@@ -850,6 +883,16 @@ export default function (pi: ExtensionAPI) {
         // Footer toggle replaces the component in tui.children, so the
         // compositor's captured reference is stale; reinstall to capture
         // the new footer (or EmptyFooter) and render it under the editor.
+        if (fixedEditorEnabled && activeTui) installFixedEditorCompositor(ctx, activeTui);
+      }
+    }
+
+    if ("statusWidgetPlacement" in patch && patch.statusWidgetPlacement !== statusWidgetPlacement) {
+      statusWidgetPlacement = next.statusWidgetPlacement;
+      if (statuslineEnabled) {
+        ctx.ui.setWidget("wierd-statusline", undefined);
+        mountStatusWidget(ctx);
+        activeTui?.requestRender(true);
         if (fixedEditorEnabled && activeTui) installFixedEditorCompositor(ctx, activeTui);
       }
     }
@@ -1033,6 +1076,19 @@ export default function (pi: ExtensionAPI) {
         label: "Hide pi footer",
         description: "Hide pi's built-in footer (we render our own statusline row).",
         value: display.footerHidden,
+      },
+      {
+        key: "statusWidgetPlacement",
+        type: "enum",
+        tab: "display",
+        label: "Statusline placement",
+        description: "Place the statusline above the editor (upstream style) or below it with the editor bottom border as a divider.",
+        value: display.statusWidgetPlacement,
+        options: ["belowEditor", "aboveEditor"],
+        optionLabels: {
+          belowEditor: "Below prompt",
+          aboveEditor: "Above prompt",
+        },
       },
       {
         key: "fixedEditorEnabled",
@@ -1228,6 +1284,9 @@ export default function (pi: ExtensionAPI) {
         // Display-tab fields all share the same side-effect bus.
         if (key === "statuslineEnabled") return applyDisplayChange(ctx, { statuslineEnabled: value as boolean });
         if (key === "footerHidden") return applyDisplayChange(ctx, { footerHidden: value as boolean });
+        if (key === "statusWidgetPlacement") {
+          return applyDisplayChange(ctx, { statusWidgetPlacement: value as StatusWidgetPlacement });
+        }
         if (key === "fixedEditorEnabled") return applyDisplayChange(ctx, { fixedEditorEnabled: value as boolean });
         if (key === "mouseScrollEnabled") return applyDisplayChange(ctx, { mouseScrollEnabled: value as boolean });
         if (key === "iconSet") return applyDisplayChange(ctx, { iconSet: value as IconSet });
@@ -1306,6 +1365,15 @@ export default function (pi: ExtensionAPI) {
   const isKnownBlockId = (value: string | undefined): value is BlockId =>
     typeof value === "string" && (KNOWN_BLOCK_IDS as readonly string[]).includes(value);
 
+  const parseStatusWidgetPlacement = (value: string | undefined): StatusWidgetPlacement | null => {
+    if (value === "below" || value === "belowEditor") return "belowEditor";
+    if (value === "above" || value === "aboveEditor") return "aboveEditor";
+    return null;
+  };
+
+  const formatStatusWidgetPlacement = (placement: StatusWidgetPlacement): string =>
+    placement === "belowEditor" ? "below prompt" : "above prompt";
+
   /** Read-only structured dump used by callers that can't host the
    *  overlay (RPC, `--print` mode). */
   const printStatusDump = (ctx: ExtensionContext): void => {
@@ -1317,6 +1385,7 @@ export default function (pi: ExtensionAPI) {
     const lines = [
       `statusline:    ${display.statuslineEnabled ? "on" : "off"}`,
       `footer:        ${display.footerHidden ? "hidden" : "shown"}`,
+      `placement:     ${formatStatusWidgetPlacement(display.statusWidgetPlacement)}`,
       `fixed editor:  ${display.fixedEditorEnabled ? "on" : "off"}`,
       `mouse scroll:  ${display.mouseScrollEnabled ? "on" : "off"}`,
       `icon set:      ${display.iconSet}`,
@@ -1442,7 +1511,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerCommand("statusline", {
     description:
-      "Open the @wierdbytes/pi-statusline settings overlay (no args). Action subcommands: on | off | toggle | status | icons [set] | layout [...] | events log | events clear",
+      "Open the @wierdbytes/pi-statusline settings overlay (no args). Action subcommands: on | off | toggle | status | placement [above|below] | icons [set] | layout [...] | events log | events clear",
     handler: async (args, ctx) => {
       currentCtx = ctx;
       const tokens = (args ?? "").trim().split(/\s+/).filter(Boolean);
@@ -1462,6 +1531,22 @@ export default function (pi: ExtensionAPI) {
 
       if (cmd === "status") {
         printStatusDump(ctx);
+        return;
+      }
+
+      if (cmd === "placement") {
+        const sub = tokens[1];
+        if (!sub || sub === "status") {
+          ctx.ui.notify(`placement: ${formatStatusWidgetPlacement(statusWidgetPlacement)}`, "info");
+          return;
+        }
+        const next = parseStatusWidgetPlacement(sub);
+        if (!next) {
+          ctx.ui.notify("Usage: /statusline placement <above|below>", "warning");
+          return;
+        }
+        applyDisplayChange(ctx, { statusWidgetPlacement: next });
+        ctx.ui.notify(`placement: ${formatStatusWidgetPlacement(next)}`, "info");
         return;
       }
 
@@ -1516,7 +1601,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       ctx.ui.notify(
-        "Usage: /statusline [on|off|toggle|status|icons [set]|layout [status|reset|toggle <block>|move <block> <dir>]|events log|events clear]  (no args ⇒ open settings overlay)",
+        "Usage: /statusline [on|off|toggle|status|placement [above|below]|icons [set]|layout [status|reset|toggle <block>|move <block> <dir>]|events log|events clear]  (no args ⇒ open settings overlay)",
         "info",
       );
     },

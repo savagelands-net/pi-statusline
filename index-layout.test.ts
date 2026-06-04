@@ -1,18 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_STATUS_WIDGET_PLACEMENT,
   renderEditorLinesForStatusline,
-  STATUS_WIDGET_PLACEMENT,
 } from "./index.ts";
 
 describe("statusline placement", () => {
-  it("renders the status widget below the editor", () => {
-    expect(STATUS_WIDGET_PLACEMENT).toBe("belowEditor");
+  it("defaults to rendering the status widget below the editor", () => {
+    expect(DEFAULT_STATUS_WIDGET_PLACEMENT).toBe("belowEditor");
   });
 
-  it("keeps the editor bottom border as a divider above the statusline", () => {
+  it("keeps the editor bottom border as a divider above the below-editor statusline", () => {
     const lines = ["────", "prompt text", "────"];
 
-    expect(renderEditorLinesForStatusline(lines)).toEqual(lines);
+    expect(renderEditorLinesForStatusline(lines, "belowEditor")).toEqual(lines);
+  });
+
+  it("strips editor borders when the statusline is above the editor", () => {
+    const lines = ["────", "prompt text", "────"];
+
+    expect(renderEditorLinesForStatusline(lines, "aboveEditor")).toEqual(["prompt text"]);
   });
 });

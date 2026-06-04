@@ -136,7 +136,7 @@ selection.
 ## Install
 
 ```bash
-pi install npm:@wierdbytes/pi-statusline
+pi install git:github.com/savagelands-net/pi-statusline
 ```
 
 Restart pi to activate.
@@ -146,6 +146,7 @@ Restart pi to activate.
 - `/statusline on` — enable the statusline
 - `/statusline off` — disable, restoring pi's default editor and footer
 - `/statusline toggle` — toggle
+- `/statusline placement [above|below|status]` — place the statusline above the prompt/editor like upstream `@wierdbytes`, or below the prompt/editor with the editor bottom border as a divider
 - `/statusline footer on|off|toggle` — show/hide pi's built-in footer beneath the editor (hidden by default)
 - `/statusline fixed-editor on|off|toggle` — keep the editor cluster fixed at the bottom while chat scrolls above (off by default)
 - `/statusline mouse-scroll on|off|toggle` — enable wheel/drag scrolling and selection inside the fixed editor (on by default)
@@ -153,6 +154,24 @@ Restart pi to activate.
 - `/statusline icons [nerd-font|plain|ascii|minimal|emoji|status]` — switch the icon set used for model / thinking / stash / toast levels / subagents chip
 - `/statusline layout [status|reset|toggle <block>|move <block> <up|down|top|bottom>]` — configure block order + visibility (see [Layout](#layout))
 - `/statusline subagents [status|on|off|long-ms <ms>|toast-failure <on|off>|toast-long <on|off>|toast-scheduled <on|off>]` — control the subagents bridge (see below)
+
+## Statusline placement
+
+This fork defaults to rendering the statusline **below** the prompt/editor. The editor's bottom border remains visible and acts as the divider between the prompt text and the statusline.
+
+Switch back to the upstream-style placement above the prompt/editor with:
+
+```text
+/statusline placement above
+```
+
+Switch to the below-prompt layout with:
+
+```text
+/statusline placement below
+```
+
+The setting is also available as **Statusline placement** on the Display tab of `/statusline`, and is persisted in `~/.pi/agent/wierd-statusline/events.json` as `display.statusWidgetPlacement` (`"aboveEditor"` or `"belowEditor"`).
 
 ## Icon sets
 
