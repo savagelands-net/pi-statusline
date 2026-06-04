@@ -77,9 +77,10 @@ describe("block renderers (in isolation)", () => {
     expect(out).not.toContain("med");
   });
 
-  it("renderPath shows the last segment in accent color", () => {
+  it("renderPath shows a folder icon and the last segment in accent color", () => {
     const out = BLOCK_RENDERERS.path(makeInputs({ cwd: "/a/b/c" }));
     expect(out).toContain(C_PURPLE);
+    expect(out).toContain(resolveIcon("ascii", "folder"));
     expect(out).toContain("/c");
   });
 

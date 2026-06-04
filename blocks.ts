@@ -275,12 +275,13 @@ const renderModel: BlockRenderer = (inputs) => {
   return `${head} ${color}${resolveIcon(inputs.iconSet, "thinking")} ${label}${C_RESET}`;
 };
 
-/** `path` block — `…/parent/dir` with the current directory accented. */
+/** `path` block — folder icon + `…/parent/dir` with the current directory accented. */
 const renderPath: BlockRenderer = (inputs) => {
   const shortDir = shortenPath(inputs.cwd);
   const dirParent = dirname(shortDir);
   const dirName = basename(shortDir) || shortDir;
-  return `${C_GRAY}${dirParent}${C_RESET}${C_PURPLE}/${dirName}${C_RESET}`;
+  const icon = resolveIcon(inputs.iconSet, "folder");
+  return `${C_PURPLE}${icon}${C_RESET} ${C_GRAY}${dirParent}${C_RESET}${C_PURPLE}/${dirName}${C_RESET}`;
 };
 
 /** `git` block — icon + branch + clean/dirty mark; empty outside a repo. */

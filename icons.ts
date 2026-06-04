@@ -36,6 +36,7 @@ export type IconSet = "nerd-font" | "plain" | "ascii" | "minimal" | "emoji";
 export type IconKey =
   | "model"
   | "thinking"
+  | "folder"
   | "git"
   | "stash"
   | "debug"
@@ -87,6 +88,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   "nerd-font": {
     model: "\uec19",     //  nf-cod-copilot
     thinking: "\uf0eb",  //  nf-fa-lightbulb-o
+    folder: "\uf07b",    //  nf-fa-folder
     git: "\uf126",       //  nf-fa-code_fork
     stash: "\uf487",     //  nf-oct-package
     debug: "\uf188",     //  nf-fa-bug
@@ -100,6 +102,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   plain: {
     model: "◆",
     thinking: "◇",
+    folder: "▣",
     git: "⎇",
     stash: "▤",
     debug: "?",
@@ -113,6 +116,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   ascii: {
     model: "[m]",
     thinking: "[t]",
+    folder: "[d]",
     git: "[g]",
     stash: "[s]",
     debug: "[?]",
@@ -126,6 +130,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   minimal: {
     model: "▸",
     thinking: "···",
+    folder: "▣",
     git: "⎇",
     stash: "≡",
     debug: "?",
@@ -139,6 +144,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   emoji: {
     model: "🤖",
     thinking: "🧠",
+    folder: "📁",
     git: "🌿",
     stash: "📦",
     debug: "🔍",
