@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_STATUS_WIDGET_PLACEMENT,
+  PROMPT_PREFIX,
   renderEditorLinesForStatusline,
 } from "./index.ts";
 
@@ -10,15 +11,33 @@ describe("statusline placement", () => {
     expect(DEFAULT_STATUS_WIDGET_PLACEMENT).toBe("belowEditor");
   });
 
-  it("keeps the editor bottom border as a divider above the below-editor statusline", () => {
+  it("adds a prompt prefix while keeping the bottom divider in below-editor placement", () => {
     const lines = ["────", "prompt text", "────"];
 
-    expect(renderEditorLinesForStatusline(lines, "belowEditor")).toEqual(lines);
+    expect(renderEditorLinesForStatusline(lines, "belowEditor")).toEqual([
+      "────",
+      `${PROMPT_PREFIX} prompt text`,
+      "────",
+    ]);
   });
 
-  it("keeps the editor bottom border as a divider when the statusline is above the editor", () => {
+  it("adds a prompt prefix while keeping the bottom divider in above-editor placement", () => {
     const lines = ["────", "prompt text", "────"];
 
-    expect(renderEditorLinesForStatusline(lines, "aboveEditor")).toEqual(["prompt text", "────"]);
+    expect(renderEditorLinesForStatusline(lines, "aboveEditor")).toEqual([
+      `${PROMPT_PREFIX} prompt text`,
+      "────",
+    ]);
+  });
+
+  it("indents continuation lines under the prompt prefix", () => {
+    const lines = ["────", "first line", "second line", "────"];
+
+    expect(renderEditorLinesForStatusline(lines, "belowEditor")).toEqual([
+      "────",
+      `${PROMPT_PREFIX} first line`,
+      "  second line",
+      "────",
+    ]);
   });
 });

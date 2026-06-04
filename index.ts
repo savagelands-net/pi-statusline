@@ -66,20 +66,48 @@ import { emergencyTerminalModeReset, TerminalSplitCompositor } from "./fixed-edi
 
 const PROMPT_PADDING = 0;
 
+export const PROMPT_PREFIX = "❯";
+
 export { DEFAULT_STATUS_WIDGET_PLACEMENT } from "./events-config.ts";
+
+export interface RenderEditorLinesForStatuslineOptions {
+  width?: number;
+  promptPrefix?: string;
+  continuationPrefix?: string;
+}
 
 export function renderEditorLinesForStatusline(
   lines: string[],
   placement: StatusWidgetPlacement = DEFAULT_STATUS_WIDGET_PLACEMENT,
+  options: RenderEditorLinesForStatuslineOptions = {},
 ): string[] {
-  if (placement === "belowEditor") return lines;
-
   const next = [...lines];
   const stripAnsi = (s: string) =>
     s.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\]8;;[^\x07]*\x07/g, "");
   const isBorder = (s: string) => /^[─━]+\s*$/.test(s);
 
-  if (isBorder(stripAnsi(next[0] ?? ""))) next.shift();
+  if (placement === "aboveEditor" && isBorder(stripAnsi(next[0] ?? ""))) next.shift();
+
+  const firstContentIndex = isBorder(stripAnsi(next[0] ?? "")) ? 1 : 0;
+  let bottomBorderIndex = next.length;
+  for (let i = next.length - 1; i >= firstContentIndex; i--) {
+    if (isBorder(stripAnsi(next[i] ?? ""))) {
+      bottomBorderIndex = i;
+      break;
+    }
+  }
+
+  const promptPrefix = options.promptPrefix ?? PROMPT_PREFIX;
+  const continuationPrefix = options.continuationPrefix ?? " ";
+  const fit = (line: string) =>
+    typeof options.width === "number" && options.width > 0
+      ? truncateToWidth(line, options.width)
+      : line;
+
+  for (let i = firstContentIndex; i < bottomBorderIndex; i++) {
+    const prefix = i === firstContentIndex ? promptPrefix : continuationPrefix;
+    next[i] = fit(`${prefix} ${next[i] ?? ""}`);
+  }
 
   return next;
 }
@@ -232,7 +260,10 @@ function makeEditorFactory(
         const lines = super.render(width);
         if (lines.length === 0) return lines;
 
-        return renderEditorLinesForStatusline(lines, getPlacement());
+        return renderEditorLinesForStatusline(lines, getPlacement(), {
+          width,
+          promptPrefix: ctx.ui.theme.fg("accent", PROMPT_PREFIX),
+        });
       }
     }
 

@@ -173,6 +173,16 @@ Switch to the below-prompt layout with:
 
 The setting is also available as **Statusline placement** on the Display tab of `/statusline`, and is persisted in `~/.pi/agent/wierd-statusline/events.json` as `display.statusWidgetPlacement` (`"aboveEditor"` or `"belowEditor"`).
 
+## Prompt prefix
+
+The editor renders a powerline-style prompt marker before your input:
+
+```text
+❯ your prompt text
+```
+
+Continuation lines are indented under the prompt marker. This mirrors the `pi-powerline` custom editor style while keeping this fork's statusline and divider behavior.
+
 ## Icon sets
 
 The statusline ships five built-in icon sets you can swap with
