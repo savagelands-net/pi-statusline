@@ -24,10 +24,9 @@
  *   - `emoji`      Original emoji set — kept for users who liked the
  *                  pre-facelift look.
  *
- * `git` (✓ / ✗) and subagent inline marks (✓ / ✗) intentionally stay
- * plain Unicode regardless of icon set — they look identical
- * everywhere and don't read as "decoration" the way model / thinking
- * / stash icons do.
+ * Git state marks (✓ / ✗) and subagent inline marks (✓ / ✗)
+ * intentionally stay plain Unicode regardless of icon set — they look
+ * identical everywhere and read as state, not decoration.
  */
 
 /** Built-in icon-set identifiers. */
@@ -37,6 +36,7 @@ export type IconSet = "nerd-font" | "plain" | "ascii" | "minimal" | "emoji";
 export type IconKey =
   | "model"
   | "thinking"
+  | "git"
   | "stash"
   | "debug"
   | "info"
@@ -87,6 +87,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   "nerd-font": {
     model: "\uec19",     //  nf-cod-copilot
     thinking: "\uf0eb",  //  nf-fa-lightbulb-o
+    git: "\uf126",       //  nf-fa-code_fork
     stash: "\uf487",     //  nf-oct-package
     debug: "\uf188",     //  nf-fa-bug
     info: "\uf449",      //  nf-oct-info
@@ -99,6 +100,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   plain: {
     model: "◆",
     thinking: "◇",
+    git: "⎇",
     stash: "▤",
     debug: "?",
     info: "ⓘ",
@@ -111,6 +113,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   ascii: {
     model: "[m]",
     thinking: "[t]",
+    git: "[g]",
     stash: "[s]",
     debug: "[?]",
     info: "[i]",
@@ -123,6 +126,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   minimal: {
     model: "▸",
     thinking: "···",
+    git: "⎇",
     stash: "≡",
     debug: "?",
     info: "i",
@@ -135,6 +139,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
   emoji: {
     model: "🤖",
     thinking: "🧠",
+    git: "🌿",
     stash: "📦",
     debug: "🔍",
     info: "ℹ️",

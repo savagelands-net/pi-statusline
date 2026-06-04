@@ -283,11 +283,11 @@ const renderPath: BlockRenderer = (inputs) => {
   return `${C_GRAY}${dirParent}${C_RESET}${C_PURPLE}/${dirName}${C_RESET}`;
 };
 
-/** `git` block — branch + clean/dirty mark; empty outside a repo. */
+/** `git` block — icon + branch + clean/dirty mark; empty outside a repo. */
 const renderGit: BlockRenderer = (inputs) => {
   if (!inputs.branch) return "";
   const mark = inputs.dirty ? `${C_RED}✗${C_RESET}` : `${C_GREEN}✓${C_RESET}`;
-  return `${C_CYAN}${inputs.branch} ${mark}`;
+  return `${C_CYAN}${resolveIcon(inputs.iconSet, "git")} ${inputs.branch} ${mark}`;
 };
 
 /** `context` block — `pct%: used[bar]remaining`; empty when no context window. */

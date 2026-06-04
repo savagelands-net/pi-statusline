@@ -20,7 +20,7 @@ fully configurable — see [Layout](#layout) below):
   block).
 - **Path** — up to the last three segments of `cwd` with a `…/` prefix.
   Parent segments in gray, current directory in purple.
-- **Git** — branch name plus a clean/dirty marker (`✓` green / `✗` red).
+- **Git** — icon, branch name, plus a clean/dirty marker (`✓` green / `✗` red).
   Hidden when not in a git repo.
 - **Context** — percentage of usable context window before autocompaction
   (33k buffer reserved), printed as `pct%: used[▓░░░]remaining` with a
@@ -151,7 +151,7 @@ Restart pi to activate.
 - `/statusline fixed-editor on|off|toggle` — keep the editor cluster fixed at the bottom while chat scrolls above (off by default)
 - `/statusline mouse-scroll on|off|toggle` — enable wheel/drag scrolling and selection inside the fixed editor (on by default)
 - `/statusline events [status|log|clear|toast-ms <level> <ms>]` — inspect / tune the chip+toast pipeline
-- `/statusline icons [nerd-font|plain|ascii|minimal|emoji|status]` — switch the icon set used for model / thinking / stash / toast levels / subagents chip
+- `/statusline icons [nerd-font|plain|ascii|minimal|emoji|status]` — switch the icon set used for model / thinking / git / stash / toast levels / subagents chip
 - `/statusline layout [status|reset|toggle <block>|move <block> <up|down|top|bottom>]` — configure block order + visibility (see [Layout](#layout))
 - `/statusline subagents [status|on|off|long-ms <ms>|toast-failure <on|off>|toast-long <on|off>|toast-scheduled <on|off>]` — control the subagents bridge (see below)
 
@@ -198,10 +198,10 @@ Display tab of the settings overlay). The choice persists in
 | `minimal` | `─ ▸ sonnet-4.5 ··· medium │ … │ master ✓ │ 45%: … │ $0.12 │ ≡ 2` | Single-character symbolic glyphs. Powerline / starship aesthetic. |
 | `emoji` | `─ 🤖 sonnet-4.5 🧠 medium │ … │ master ✓ │ 45%: … │ $0.12 │ 📦 2` | Original pre-facelift look. Kept for users who prefer emoji. |
 
-`git` (✓ / ✗) and the inline subagent completion / failure marks
-(✓ / ✗) intentionally stay plain Unicode regardless of the active
-set — they look identical everywhere and read as state, not
-decoration.
+The git icon follows the active icon set. The git state marks (✓ / ✗)
+and inline subagent completion / failure marks (✓ / ✗) intentionally
+stay plain Unicode regardless of the active set — they look identical
+everywhere and read as state, not decoration.
 
 ## Subagents bridge
 

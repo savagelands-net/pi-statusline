@@ -27,6 +27,7 @@ import {
   composeStatusLine,
   type RenderInputs,
 } from "./blocks.ts";
+import { resolveIcon } from "./icons.ts";
 import { cloneDefaultLayout } from "./layout-config.ts";
 
 /** Build a synthetic `RenderInputs` with sensible defaults. */
@@ -86,10 +87,11 @@ describe("block renderers (in isolation)", () => {
     expect(BLOCK_RENDERERS.git(makeInputs({ branch: null }))).toBe("");
   });
 
-  it("renderGit shows green check when clean", () => {
+  it("renderGit shows icon, branch, and green check when clean", () => {
     const out = BLOCK_RENDERERS.git(makeInputs({ dirty: false }));
     expect(out).toContain(C_CYAN);
     expect(out).toContain(C_GREEN);
+    expect(out).toContain(resolveIcon("ascii", "git"));
     expect(out).toContain("main");
     expect(out).not.toContain(C_RED);
   });
