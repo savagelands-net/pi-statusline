@@ -1,0 +1,49 @@
+{
+  "name": "@wierdbytes/pi-statusline",
+  "version": "0.7.0",
+  "description": "Minimal modular statusline extension for pi coding agent",
+  "type": "module",
+  "files": [
+    "*.ts",
+    "*.md",
+    "*.json",
+    "fixed-editor/**/*.ts",
+    "assets/**"
+  ],
+  "keywords": [
+    "pi-package",
+    "pi",
+    "coding-agent",
+    "statusline",
+    "tokyo-night",
+    "extension"
+  ],
+  "license": "MIT",
+  "author": "wierdbytes",
+  "homepage": "https://github.com/wierdbytes/pi-wierd-stuff/tree/master/packages/statusline",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wierdbytes/pi-wierd-stuff.git",
+    "directory": "packages/statusline"
+  },
+  "bugs": {
+    "url": "https://github.com/wierdbytes/pi-wierd-stuff/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "@wierdbytes/pi-common": "^0.5.0",
+    "@wierdbytes/pi-events": "^0.1.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.74.0",
+    "@earendil-works/pi-coding-agent": "^0.74.0",
+    "@earendil-works/pi-tui": "^0.74.0"
+  }
+}
