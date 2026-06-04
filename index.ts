@@ -64,6 +64,12 @@ import { emergencyTerminalModeReset, TerminalSplitCompositor } from "./fixed-edi
 
 const PROMPT_PADDING = 0;
 
+export const STATUS_WIDGET_PLACEMENT = "belowEditor" as const;
+
+export function renderEditorLinesForStatusline(lines: string[]): string[] {
+  return lines;
+}
+
 /**
  * Render the toast row. Returns a width-padded line so it occupies a
  * full terminal row.
@@ -211,20 +217,7 @@ function makeEditorFactory(
         const lines = super.render(width);
         if (lines.length === 0) return lines;
 
-        const stripAnsi = (s: string) =>
-          s.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\]8;;[^\x07]*\x07/g, "");
-        const isBorder = (s: string) => /^[─━]+\s*$/.test(s);
-
-        if (isBorder(stripAnsi(lines[0]))) lines.shift();
-
-        for (let i = lines.length - 1; i >= 0; i--) {
-          if (isBorder(stripAnsi(lines[i]))) {
-            lines.splice(i, 1);
-            break;
-          }
-        }
-
-        return lines;
+        return renderEditorLinesForStatusline(lines);
       }
     }
 
@@ -280,7 +273,7 @@ function installStatusWidget(
         );
       },
     }),
-    { placement: "aboveEditor" },
+    { placement: STATUS_WIDGET_PLACEMENT },
   );
 }
 
