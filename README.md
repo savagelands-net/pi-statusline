@@ -27,14 +27,6 @@ Use this path for the package screenshot:
 assets/demo.png
 ```
 
-Put the new screenshot in the repo at:
-
-```text
-~/repos/savagelands-net/pi-statusline/assets/demo.png
-```
-
-Name it exactly `demo.png`, replacing the old upstream screenshot. The README, GitHub page, npm package, and package manifest already include `assets/**`, so no other path changes are needed.
-
 ## Install
 
 ```bash
