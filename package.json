@@ -1,6 +1,6 @@
 {
-  "name": "@wierdbytes/pi-statusline",
-  "version": "0.7.0",
+  "name": "@savagelands-net/pi-statusline",
+  "version": "0.1.0",
   "description": "Minimal modular statusline extension for pi coding agent",
   "type": "module",
   "files": [
@@ -20,14 +20,13 @@
   ],
   "license": "MIT",
   "author": "wierdbytes",
-  "homepage": "https://github.com/wierdbytes/pi-wierd-stuff/tree/master/packages/statusline",
+  "homepage": "https://github.com/savagelands-net/pi-statusline#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wierdbytes/pi-wierd-stuff.git",
-    "directory": "packages/statusline"
+    "url": "git+https://github.com/savagelands-net/pi-statusline.git"
   },
   "bugs": {
-    "url": "https://github.com/wierdbytes/pi-wierd-stuff/issues"
+    "url": "https://github.com/savagelands-net/pi-statusline/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -44,6 +43,12 @@
   "devDependencies": {
     "@earendil-works/pi-ai": "^0.74.0",
     "@earendil-works/pi-coding-agent": "^0.74.0",
-    "@earendil-works/pi-tui": "^0.74.0"
+    "@earendil-works/pi-tui": "^0.74.0",
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "scripts": {
+    "test": "vitest run"
   }
 }
