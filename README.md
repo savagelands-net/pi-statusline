@@ -1,237 +1,252 @@
-# @wierdbytes/pi-statusline
+# @savagelands-net/pi-statusline
 
-Minimal Tokyo Night Storm statusline for [pi](https://github.com/badlogic/pi-mono).
-Renders a compact one-line status row above the editor, with the editor's
-own top/bottom borders stripped so the two visually merge into a single
-cluster.
+A polished statusline extension for [Pi](https://github.com/earendil-works/pi-coding-agent), maintained by **savagelands-net**.
 
-![@wierdbytes/pi-statusline demo](./assets/demo.png)
+This package is a fork of [`@wierdbytes/pi-statusline`](https://www.npmjs.com/package/@wierdbytes/pi-statusline). The upstream package provided the modular Tokyo Night styled statusline foundation; this fork keeps that base and adds the layout, prompt, icon, and npm-package polish we wanted for our Pi setup.
 
-Sections (each appears only when relevant; ordering and visibility are
-fully configurable — see [Layout](#layout) below):
+![Savagelands Pi Statusline demo](./assets/demo.png)
 
-- **Model** — `🤖` plus the active model's display name (e.g. `Opus 4.7`).
-  `Claude ` and `anthropic/` prefixes are stripped for brevity. The
-  optional **thinking** segment (`🧠` + level) renders inline after
-  the model name when the active model is reasoning-capable and the
-  `Model: show thinking` sub-toggle is on. Thinking is a sub-segment
-  of the model block — they always render together and reorder as one
-  unit (mirrors how the four token counters live inside the tokens
-  block).
-- **Path** — folder icon plus up to the last three segments of `cwd` with a `…/` prefix.
-  Parent segments in gray, current directory in purple.
-- **Git** — icon, branch name, plus a clean/dirty marker (`✓` green / `✗` red).
-  Hidden when not in a git repo.
-- **Context** — percentage of usable context window before autocompaction
-  (33k buffer reserved), printed as `pct%: used[▓░░░]remaining` with a
-  colored progress bar. Color shifts green → yellow → red as you approach
-  the threshold.
-- **Cost** — session total in USD when greater than zero.
-- **Tokens** — cumulative session input/output and cache read/write
-  counters: `↑input ↓output R{cacheRead} W{cacheWrite}`. Each counter
-  has its own sub-toggle (`Tokens: input`, `Tokens: output`, `Tokens:
-  cache read`, `Tokens: cache write`) so users can keep the block at
-  one position in the layout but hide individual counters.
-- **Stash** — `📦 N` showing how many prompts are saved in the stash history
-  (see below). Hidden when empty.
-- **Subagents** — `🤖 agents N/M` chip when [`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents)
-  is loaded and at least one agent is active. `N` is the number currently
-  running, `M = N + queued`. The chip clears as soon as every agent
-  reaches a terminal state. Failures and long-running completions surface
-  as one-shot toasts above the row — see [Subagents bridge](#subagents-bridge).
+## What this fork adds
 
-Inspired by [`pi-powerline-footer`](https://github.com/nicobailon/pi-powerline-footer)
-by [@nicobailon](https://github.com/nicobailon) — the original brought the
-statusline-as-footer idea to pi. This extension is a from-scratch take that
-focuses on just that footer (skipping the bash mode, working vibes, and
-welcome overlay pieces).
+Compared with the upstream `@wierdbytes` package, this fork adds:
 
-## Layout
+- **Published package identity** — npm package, GitHub repo, and docs now live under `@savagelands-net/pi-statusline`.
+- **Below-prompt statusline placement** — the statusline defaults to rendering below the prompt/editor instead of above it.
+- **Configurable placement** — switch between above-editor, below-editor, and status output with `/statusline placement ...`.
+- **Prompt divider behavior** — the editor bottom border stays visible and acts as the divider when the statusline is below the prompt.
+- **Powerline-style prompt prefix** — editor input starts with a clean `❯` marker and continuation lines align underneath it.
+- **Folder icon in the path block** — the cwd segment has a matching icon for the active icon set.
+- **Git branch icon** — the git block now includes an icon, branch name, and clean/dirty state.
+- **Expanded icon sets** — choose Nerd Font, plain Unicode, ASCII, minimal, or emoji styles.
 
-The statusline ships with eight reorderable blocks: `model`, `path`,
-`git`, `context`, `cost`, `tokens`, `chips`, and `stash`. The leading
-`─` divider is always first; everything else can be reordered or
-hidden via the **Layout** tab in the settings overlay (`/statusline`),
-or through the imperative `/statusline layout ...` subcommands.
+## Screenshot
 
-The **Layout** tab lists each block as its own row, in the current
-order. The right-hand value cell is a checkbox: `[✓]` when the block
-is visible, `[ ]` when hidden. Enabled rows render in the active text
-color; disabled rows fade to gray.
+Use this path for the package screenshot:
 
-Direct Layout-tab key bindings:
+```text
+assets/demo.png
+```
 
-- `space` — toggle the focused block's visibility.
-- `alt+↑` / `alt+↓` — swap the focused block with its neighbour.
-  Focus follows the moved row, persistence is immediate, and the
-  separator field at the bottom is non-reorderable so it doesn't get
-  in the way.
-- `enter` — open the block's sub-menu **only if the block has
-  block-specific knobs** (currently `model` and `tokens`). For every
-  other block (`path`, `git`, `context`, `cost`, `chips`, `stash`)
-  Enter is a no-op and the footer hint doesn't advertise it.
+Put the new screenshot in the repo at:
 
-Sub-menu contents (Enter on the row):
+```text
+~/repos/savagelands-net/pi-statusline/assets/demo.png
+```
 
-- (`model`) **Show thinking level** — inline thinking segment after
-  the model name. Only renders for reasoning-capable models anyway.
-- (`tokens`) **Show input / output / cache read / cache write** —
-  individual sub-toggles for the four counters inside the tokens
-  block.
-
-Visibility lives on the Layout tab (`space`), not inside the sub-menu;
-reorder lives on the Layout tab (`alt+↑↓`), not inside the sub-menu.
-This keeps the sub-menu tightly scoped to settings that **only** make
-sense for one specific block.
-
-At the bottom of the Layout tab:
-
-- **Separator** — glyph rendered between visible blocks. Built-in
-  choices: `│` (default), `·`, `▎`, `:`, `(space)`. Hand-edit
-  `~/.pi/agent/wierd-statusline/events.json` for anything else (the
-  loader clamps to 1–2 visible columns; newlines/tabs are stripped).
-
-Imperative shortcuts — same persistence bus the modal uses:
-
-- `/statusline layout` — print the active order, e.g.
-  `model > path > git! > context > cost > tokens > chips > stash (7/8 visible)`
-  (a trailing `!` marks a disabled block).
-- `/statusline layout reset` — restore defaults.
-- `/statusline layout toggle <block>` — flip one block's visibility.
-- `/statusline layout move <block> <up|down|top|bottom>` — reorder.
-
-The layout slice is persisted alongside the other knobs in
-`~/.pi/agent/wierd-statusline/events.json` (schema `version: 2`).
-Upgrading from a `version: 1` file is transparent: the missing layout
-slice is injected with defaults and the file is rewritten on first
-load, so users coming from `0.6.x` see no visible change.
-
-## Editor stash
-
-Press `Alt+S` to save the editor's contents and clear the input, type a quick
-prompt, and the stashed text auto-restores when the agent finishes — but only
-if the editor is empty at that point (otherwise the stash is preserved and a
-notification reminds you to clear and `Alt+S` to restore). Pressing `Alt+S`
-again with text in the editor *updates* the live stash slot. The statusline's
-`📦 N` indicator reflects the current stash-history depth.
-
-Every stash is pushed onto a persisted MRU history (12 entries max, stored at
-`~/.pi/agent/wierd-statusline/stash-history.json`). Press `Ctrl+Alt+S` to
-open a picker overlay; navigate with arrows, `Enter` inserts the selected
-entry (replace/append/cancel prompt if the editor is non-empty), `d` deletes
-the selected entry, and `Esc` cancels.
-
-## Fixed editor cluster
-
-Off by default — enable with `/statusline fixed-editor on`. When enabled,
-in interactive TUI sessions chat/feed content scrolls above the fixed
-statusline, editor, and any extension-supplied widget rows. Scroll chat with
-the mouse wheel, PageUp/PageDown, Command+PageUp/PageDown, or Ctrl+Shift+Up/Down;
-the editor stays put. Drag text to copy it, drag a selection to the viewport
-edge to scroll, double-click a line to select it, and right-click to open the
-terminal context menu. Use `/statusline fixed-editor off` for pi's regular
-scrolling layout, or `/statusline mouse-scroll off` for native terminal
-selection.
+Name it exactly `demo.png`, replacing the old upstream screenshot. The README, GitHub page, npm package, and package manifest already include `assets/**`, so no other path changes are needed.
 
 ## Install
 
 ```bash
-pi install git:github.com/savagelands-net/pi-statusline
+pi install npm:@savagelands-net/pi-statusline
 ```
 
-Restart pi to activate.
-
-## Commands
-
-- `/statusline on` — enable the statusline
-- `/statusline off` — disable, restoring pi's default editor and footer
-- `/statusline toggle` — toggle
-- `/statusline placement [above|below|status]` — place the statusline above the prompt/editor like upstream `@wierdbytes`, or below the prompt/editor with the editor bottom border as a divider
-- `/statusline footer on|off|toggle` — show/hide pi's built-in footer beneath the editor (hidden by default)
-- `/statusline fixed-editor on|off|toggle` — keep the editor cluster fixed at the bottom while chat scrolls above (off by default)
-- `/statusline mouse-scroll on|off|toggle` — enable wheel/drag scrolling and selection inside the fixed editor (on by default)
-- `/statusline events [status|log|clear|toast-ms <level> <ms>]` — inspect / tune the chip+toast pipeline
-- `/statusline icons [nerd-font|plain|ascii|minimal|emoji|status]` — switch the icon set used for model / thinking / folder / git / stash / toast levels / subagents chip
-- `/statusline layout [status|reset|toggle <block>|move <block> <up|down|top|bottom>]` — configure block order + visibility (see [Layout](#layout))
-- `/statusline subagents [status|on|off|long-ms <ms>|toast-failure <on|off>|toast-long <on|off>|toast-scheduled <on|off>]` — control the subagents bridge (see below)
-
-## Statusline placement
-
-This fork defaults to rendering the statusline **below** the prompt/editor. The editor's bottom border remains visible and acts as the divider between the prompt text and the statusline.
-
-Switch back to the upstream-style placement above the prompt/editor with:
+Then restart Pi or reload packages:
 
 ```text
-/statusline placement above
+/reload
 ```
 
-Switch to the below-prompt layout with:
+## Quick start
+
+```text
+/statusline on
+/statusline off
+/statusline toggle
+/statusline
+```
+
+`/statusline` opens the settings overlay where you can configure display options, icon style, block layout, and block-specific settings.
+
+## Statusline blocks
+
+Each block only appears when relevant, and block order/visibility is configurable.
+
+- **Model** — active model name, with optional inline thinking level.
+- **Path** — folder icon plus the last cwd segments, with the current folder highlighted.
+- **Git** — git icon, branch name, and clean/dirty marker.
+- **Context** — usable context percentage with a progress bar.
+- **Cost** — session cost when greater than zero.
+- **Tokens** — input, output, cache-read, and cache-write counters with individual sub-toggles.
+- **Stash** — saved prompt count from the editor stash history.
+- **Subagents** — active/queued subagent summary when a compatible subagents extension is loaded.
+
+## Layout
+
+The statusline ships with reorderable blocks:
+
+```text
+model > path > git > context > cost > tokens > chips > stash
+```
+
+Open the settings overlay with:
+
+```text
+/statusline
+```
+
+In the **Layout** tab:
+
+- `space` toggles the selected block.
+- `alt+↑` / `alt+↓` moves the selected block.
+- `enter` opens block-specific sub-settings for blocks that have them.
+
+Command-line layout controls are also available:
+
+```text
+/statusline layout
+/statusline layout reset
+/statusline layout toggle <block>
+/statusline layout move <block> <up|down|top|bottom>
+```
+
+## Placement
+
+This fork defaults to the below-prompt layout:
 
 ```text
 /statusline placement below
 ```
 
-The setting is also available as **Statusline placement** on the Display tab of `/statusline`, and is persisted in `~/.pi/agent/wierd-statusline/events.json` as `display.statusWidgetPlacement` (`"aboveEditor"` or `"belowEditor"`).
+Switch back to upstream-style placement above the editor:
+
+```text
+/statusline placement above
+```
+
+Show the current placement:
+
+```text
+/statusline placement status
+```
+
+The setting is persisted in the statusline config file.
 
 ## Prompt prefix
 
-The editor renders a powerline-style prompt marker before your input:
+The editor renders a compact powerline-style prompt marker:
 
 ```text
 ❯ your prompt text
 ```
 
-Continuation lines are indented under the prompt marker. This mirrors the `pi-powerline` custom editor style while keeping this fork's statusline and divider behavior.
+Continuation lines align under the input text, keeping multi-line prompts tidy.
 
 ## Icon sets
 
-The statusline ships five built-in icon sets you can swap with
-`/statusline icons <set>` (or via the **Icon set** field on the
-Display tab of the settings overlay). The choice persists in
-`~/.pi/agent/wierd-statusline/events.json`.
+Switch icon styles with:
 
-| Set | Sample row | Notes |
-|---|---|---|
-| `nerd-font` (default) | `─  sonnet-4.5  medium │ … │ master ✓ │ 45%: … │ $0.12 │  2` | Nerd Font glyphs (PUA codepoints). Requires a Nerd Font configured in your terminal. |
-| `plain` | `─ ◆ sonnet-4.5 ◇ medium │ … │ master ✓ │ 45%: … │ $0.12 │ ▤ 2` | Geometric Unicode glyphs that ship with every modern font. No install required. |
-| `ascii` | `- [m] sonnet-4.5 [t] medium \| … \| master ok \| 45%: … \| $0.12 \| [s] 2` | Bracketed ASCII labels. Survives broken fontconfig, ssh sessions, and log files. |
-| `minimal` | `─ ▸ sonnet-4.5 ··· medium │ … │ master ✓ │ 45%: … │ $0.12 │ ≡ 2` | Single-character symbolic glyphs. Powerline / starship aesthetic. |
-| `emoji` | `─ 🤖 sonnet-4.5 🧠 medium │ … │ master ✓ │ 45%: … │ $0.12 │ 📦 2` | Original pre-facelift look. Kept for users who prefer emoji. |
+```text
+/statusline icons <set>
+```
 
-The folder and git icons follow the active icon set. This fork uses ``
-for Nerd Font, `▣` for plain/minimal, `[d]` for ASCII, and `📁` for
-emoji. The git state marks (✓ / ✗) and inline subagent completion /
-failure marks (✓ / ✗) intentionally stay plain Unicode regardless of
-the active set — they look identical everywhere and read as state, not
-decoration.
+Available sets:
+
+| Set | Use when |
+|---|---|
+| `nerd-font` | You use a Nerd Font and want the full visual style. |
+| `plain` | You want portable Unicode symbols. |
+| `ascii` | You need maximum terminal/log compatibility. |
+| `minimal` | You want a compact symbolic look. |
+| `emoji` | You prefer the original emoji-heavy style. |
+
+Check the current icon set:
+
+```text
+/statusline icons status
+```
+
+## Editor stash
+
+The extension includes a prompt stash workflow:
+
+- `Alt+S` — stash current editor text and clear the editor.
+- `Alt+S` with an empty editor — restore the active stash.
+- `Ctrl+Alt+S` — open the stash history picker.
+
+The stash block shows the current stash-history depth as `📦 N` or the equivalent icon for the active icon set.
+
+## Fixed editor cluster
+
+Enable a fixed bottom editor/statusline cluster:
+
+```text
+/statusline fixed-editor on
+```
+
+When enabled, chat/feed content scrolls above the fixed statusline and editor. Turn it off with:
+
+```text
+/statusline fixed-editor off
+```
+
+Mouse scrolling can be controlled separately:
+
+```text
+/statusline mouse-scroll on
+/statusline mouse-scroll off
+```
 
 ## Subagents bridge
 
-When [`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents)
-is installed alongside this extension, the statusline subscribes to the
-`subagents:*` lifecycle events on `pi.events` and renders an aggregated
-`agents N/M` chip in the chips segment whenever at least one agent is
-active (the chip's icon follows the active icon set). The bridge runs
-entirely on the statusline side — no changes are required in
-pi-subagents itself, and the existing `🔴 Agents …` widget above the
-editor keeps rendering its rich tree.
+When a compatible subagents extension emits `subagents:*` events, this statusline can show an aggregated active/queued agents chip and toast failures or long-running completions.
 
-Defaults:
+```text
+/statusline subagents status
+/statusline subagents on
+/statusline subagents off
+/statusline subagents long-ms <ms>
+/statusline subagents toast-failure <on|off>
+/statusline subagents toast-long <on|off>
+/statusline subagents toast-scheduled <on|off>
+```
 
-| Behaviour | Default |
-|---|---|
-| Show summary chip while agents are running | on |
-| Toast on failure / abort / stop | on (error level, sticky until dismissed) |
-| Toast on completions ≥ 30 s | on (success level) |
-| Toast on `subagents:scheduled` | off |
-| Long-completion threshold | 30 000 ms |
+## Commands
 
-Tune via `/statusline subagents …`. Settings persist in
-`~/.pi/agent/wierd-statusline/events.json` next to the toast-timeout map.
-`/statusline subagents status` prints the live counts plus the current
-config.
+```text
+/statusline on
+/statusline off
+/statusline toggle
+/statusline placement [above|below|status]
+/statusline footer on|off|toggle
+/statusline fixed-editor on|off|toggle
+/statusline mouse-scroll on|off|toggle
+/statusline events [status|log|clear|toast-ms <level> <ms>]
+/statusline icons [nerd-font|plain|ascii|minimal|emoji|status]
+/statusline layout [status|reset|toggle <block>|move <block> <up|down|top|bottom>]
+/statusline subagents [status|on|off|long-ms <ms>|toast-failure <on|off>|toast-long <on|off>|toast-scheduled <on|off>]
+```
 
-## Shortcuts
+## Configuration files
 
-- `Alt+S` — stash editor text / restore stash when editor is empty
-- `Ctrl+Alt+S` — open the stash history picker
+For compatibility with the upstream package, config is still stored under:
+
+```text
+~/.pi/agent/wierd-statusline/
+```
+
+Important files:
+
+- `events.json` — display, placement, icon, layout, and event/toast settings.
+- `stash-history.json` — prompt stash history.
+
+## Development
+
+```bash
+git clone https://github.com/savagelands-net/pi-statusline.git
+cd pi-statusline
+npm install
+npm test
+```
+
+Install a local checkout into Pi while developing:
+
+```bash
+pi install ./
+```
+
+## Credits
+
+Forked from [`@wierdbytes/pi-statusline`](https://www.npmjs.com/package/@wierdbytes/pi-statusline) by [`@wierdbytes`](https://www.npmjs.com/~wierdbytes).
+
+Also inspired by [`pi-powerline-footer`](https://github.com/nicobailon/pi-powerline-footer) by [`@nicobailon`](https://github.com/nicobailon).
