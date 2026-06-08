@@ -29,6 +29,16 @@ describe("normaliseLayoutConfig", () => {
     }).not.toThrow();
   });
 
+  it("includes token rate after token counters by default", () => {
+    const out = normaliseLayoutConfig(undefined);
+    const enabled = out.enabled as Record<string, boolean>;
+    expect(KNOWN_BLOCK_IDS).toContain("rate");
+    expect(out.order.indexOf("rate" as any)).toBe(out.order.indexOf("tokens") + 1);
+    expect(enabled.rate).toBe(true);
+  });
+});
+
+describe("normaliseLayoutConfig order", () => {
   it("drops unknown block ids from order", () => {
     const out = normaliseLayoutConfig({
       // @ts-expect-error — exercising the bad-input branch.
@@ -63,7 +73,9 @@ describe("normaliseLayoutConfig", () => {
     for (const [, c] of counts) expect(c).toBe(1);
     expect(out.order[0]).toBe("model");
   });
+});
 
+describe("normaliseLayoutConfig flags", () => {
   it("treats missing enabled keys as true", () => {
     const out = normaliseLayoutConfig({
       // Only one key supplied — every other known id should be true.
@@ -94,7 +106,9 @@ describe("normaliseLayoutConfig", () => {
       cacheWrite: true,
     });
   });
+});
 
+describe("normaliseLayoutConfig separator and fallback", () => {
   it("falls back to default separator for an empty string", () => {
     const out = normaliseLayoutConfig({ separator: "" });
     expect(out.separator).toBe(DEFAULT_SEPARATOR);

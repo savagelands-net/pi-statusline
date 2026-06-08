@@ -36,12 +36,8 @@ import {
   VALID_ICON_SETS,
 } from "./icons.ts";
 import {
-  C_BLUE,
   C_GRAY,
-  C_GREEN,
-  C_RED,
   C_RESET,
-  C_YELLOW,
   composeStatusLine,
   type BlockId,
   KNOWN_BLOCK_IDS,
@@ -63,6 +59,14 @@ import { type ActiveToast, EventsTracker } from "./events-tracker.ts";
 import { SubagentsTracker } from "./subagents-tracker.ts";
 import { renderFixedEditorCluster } from "./fixed-editor/cluster.ts";
 import { emergencyTerminalModeReset, TerminalSplitCompositor } from "./fixed-editor/terminal-split.ts";
+import {
+  createTokenRateTracker,
+  formatTokenRate,
+  parseTokenRateCommand,
+  rateFromTokenRateSnapshot,
+  tokenDeltaTextFromEvent,
+  type TokenRateSnapshot,
+} from "./token-rate.ts";
 
 const PROMPT_PADDING = 0;
 
@@ -76,39 +80,60 @@ export interface RenderEditorLinesForStatuslineOptions {
   continuationPrefix?: string;
 }
 
+function stripStatuslineAnsi(s: string): string {
+  return s.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\]8;;[^\x07]*\x07/g, "");
+}
+
+function isEditorBorderLine(line: string | undefined): boolean {
+  return /^[─━]+\s*$/.test(stripStatuslineAnsi(line ?? ""));
+}
+
+function dropTopBorderForAboveEditor(
+  lines: string[],
+  placement: StatusWidgetPlacement,
+): string[] {
+  if (placement !== "aboveEditor") return lines;
+  return isEditorBorderLine(lines[0]) ? lines.slice(1) : lines;
+}
+
+function firstEditorContentIndex(lines: string[]): number {
+  return isEditorBorderLine(lines[0]) ? 1 : 0;
+}
+
+function bottomEditorBorderIndex(lines: string[], firstContentIndex: number): number {
+  for (let i = lines.length - 1; i >= firstContentIndex; i--) {
+    if (isEditorBorderLine(lines[i])) return i;
+  }
+  return lines.length;
+}
+
+function fitEditorLine(line: string, width: number | undefined): string {
+  return typeof width === "number" && width > 0 ? truncateToWidth(line, width) : line;
+}
+
+function addPromptPrefixesToEditorLines(
+  lines: string[],
+  firstContentIndex: number,
+  bottomBorderIndex: number,
+  options: RenderEditorLinesForStatuslineOptions,
+): void {
+  const promptPrefix = options.promptPrefix ?? PROMPT_PREFIX;
+  const continuationPrefix = options.continuationPrefix ?? " ";
+  for (let i = firstContentIndex; i < bottomBorderIndex; i++) {
+    const prefix = i === firstContentIndex ? promptPrefix : continuationPrefix;
+    lines[i] = fitEditorLine(`${prefix} ${lines[i] ?? ""}`, options.width);
+  }
+}
+
 export function renderEditorLinesForStatusline(
   lines: string[],
   placement: StatusWidgetPlacement = DEFAULT_STATUS_WIDGET_PLACEMENT,
   options: RenderEditorLinesForStatuslineOptions = {},
 ): string[] {
-  const next = [...lines];
-  const stripAnsi = (s: string) =>
-    s.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\]8;;[^\x07]*\x07/g, "");
-  const isBorder = (s: string) => /^[─━]+\s*$/.test(s);
-
-  if (placement === "aboveEditor" && isBorder(stripAnsi(next[0] ?? ""))) next.shift();
-
-  const firstContentIndex = isBorder(stripAnsi(next[0] ?? "")) ? 1 : 0;
-  let bottomBorderIndex = next.length;
-  for (let i = next.length - 1; i >= firstContentIndex; i--) {
-    if (isBorder(stripAnsi(next[i] ?? ""))) {
-      bottomBorderIndex = i;
-      break;
-    }
-  }
-
-  const promptPrefix = options.promptPrefix ?? PROMPT_PREFIX;
-  const continuationPrefix = options.continuationPrefix ?? " ";
-  const fit = (line: string) =>
-    typeof options.width === "number" && options.width > 0
-      ? truncateToWidth(line, options.width)
-      : line;
-
-  for (let i = firstContentIndex; i < bottomBorderIndex; i++) {
-    const prefix = i === firstContentIndex ? promptPrefix : continuationPrefix;
-    next[i] = fit(`${prefix} ${next[i] ?? ""}`);
-  }
-
+  const next = dropTopBorderForAboveEditor([...lines], placement);
+  const firstContentIndex = firstEditorContentIndex(next);
+  const bottomBorderIndex = bottomEditorBorderIndex(next, firstContentIndex);
+  addPromptPrefixesToEditorLines(next, firstContentIndex, bottomBorderIndex, options);
   return next;
 }
 
@@ -191,6 +216,7 @@ function renderStatusContent(
   width: number,
   stashCount: number,
   events: { chips: NotifyStatusEvent[]; toast: ActiveToast | null },
+  tokenRate: TokenRateSnapshot | null,
   iconSet: IconSet,
   layout: LayoutConfig,
 ): string[] {
@@ -220,6 +246,7 @@ function renderStatusContent(
     totalOutput: stats.totalOutput,
     totalCacheRead: stats.totalCacheRead,
     totalCacheWrite: stats.totalCacheWrite,
+    tokenRate,
     stashCount,
     chips: events.chips,
     iconSet,
@@ -299,6 +326,7 @@ function installStatusWidget(
   ctx: ExtensionContext,
   getStashCount: () => number,
   getEventsSnapshot: () => { chips: NotifyStatusEvent[]; toast: ActiveToast | null },
+  getTokenRateSnapshot: () => TokenRateSnapshot | null,
   getIconSet: () => IconSet,
   getLayout: () => LayoutConfig,
   getPlacement: () => StatusWidgetPlacement,
@@ -315,6 +343,7 @@ function installStatusWidget(
           width,
           getStashCount(),
           getEventsSnapshot(),
+          getTokenRateSnapshot(),
           getIconSet(),
           getLayout(),
         );
@@ -549,9 +578,12 @@ export default function (pi: ExtensionAPI) {
   };
 
   const tryInstallFixedEditor = () => {
-    if (!statuslineEnabled || !fixedEditorEnabled) return;
-    if (fixedEditorCompositor) return;
-    if (!activeTui || !currentCtx || !currentEditor) return;
+    const fixedEditorAvailable = statuslineEnabled && fixedEditorEnabled && !fixedEditorCompositor;
+    if (!fixedEditorAvailable) return;
+
+    if (!activeTui) return;
+    if (!currentCtx) return;
+    if (!currentEditor) return;
     if (!findContainerWithChild(activeTui, currentEditor)) return;
     installFixedEditorCompositor(currentCtx, activeTui);
   };
@@ -580,7 +612,7 @@ export default function (pi: ExtensionAPI) {
   let mouseScrollEnabled = eventsConfig.display.mouseScrollEnabled;
 
   let stashedEditorText: string | null = null;
-  let stashedPromptHistory: string[] = readPersistedStashHistory();
+  const stashedPromptHistory: string[] = readPersistedStashHistory();
   let stashShortcutUnsubscribe: (() => void) | null = null;
 
   const getStashCount = () => stashedPromptHistory.length;
@@ -625,6 +657,21 @@ export default function (pi: ExtensionAPI) {
   const getEventsSnapshot = () => {
     const snap = eventsTracker.getSnapshot();
     return { chips: snap.chips, toast: snap.toast };
+  };
+
+  // ───────────────────────── token-rate tracker ─────────────────────────
+  // Adapted from Cass67/tok-rate-footer: live output-rate estimation uses
+  // streamed text / thinking / toolcall deltas; final rate prefers provider
+  // usage output when the completed assistant message includes it.
+  const tokenRateTracker = createTokenRateTracker();
+  const getTokenRateSnapshot = () => tokenRateTracker.getSnapshot();
+  let nextTokenRateRenderAt = 0;
+  const requestTokenRateRender = (force = false) => {
+    if (!statuslineEnabled) return;
+    const now = Date.now();
+    if (!force && now < nextTokenRateRenderAt) return;
+    nextTokenRateRenderAt = now + 250;
+    activeTui?.requestRender();
   };
 
   const getStatusWidgetPlacement = () => statusWidgetPlacement;
@@ -768,16 +815,42 @@ export default function (pi: ExtensionAPI) {
     tui.requestRender(true);
   }
 
-  pi.on("thinking_level_select", async () => {
+  pi.on("thinking_level_select", () => {
     activeTui?.requestRender();
   });
 
-  pi.on("tool_result", async () => {
+  pi.on("tool_result", () => {
     invalidateGitStatus();
     activeTui?.requestRender();
   });
 
-  pi.on("session_shutdown", async () => {
+  pi.on("model_select", () => {
+    if (!tokenRateTracker.getSnapshot()?.active) {
+      tokenRateTracker.reset();
+      requestTokenRateRender(true);
+    }
+  });
+
+  pi.on("message_start", (event, ctx) => {
+    if (event.message.role !== "assistant") return;
+    tokenRateTracker.start(shortenModelName(ctx.model));
+    requestTokenRateRender(true);
+  });
+
+  pi.on("message_update", (event) => {
+    const delta = tokenDeltaTextFromEvent(event.assistantMessageEvent);
+    if (delta === null) return;
+    if (tokenRateTracker.recordDelta(delta)) requestTokenRateRender();
+  });
+
+  pi.on("message_end", (event) => {
+    if (event.message.role !== "assistant") return;
+    const msg = event.message as AssistantMessage;
+    const usageOutput = typeof msg.usage?.output === "number" ? msg.usage.output : undefined;
+    if (tokenRateTracker.finish(usageOutput)) requestTokenRateRender(true);
+  });
+
+  pi.on("session_shutdown", () => {
     teardownFixedEditorCompositor({ resetExtendedKeyboardModes: true });
     stashShortcutUnsubscribe?.();
     stashShortcutUnsubscribe = null;
@@ -794,7 +867,8 @@ export default function (pi: ExtensionAPI) {
     eventsTrackerOff = null;
   });
 
-  pi.on("agent_end", async (_event, ctx) => {
+  pi.on("agent_end", (_event, ctx) => {
+    if (tokenRateTracker.stopActive()) requestTokenRateRender(true);
     if (!ctx.hasUI) return;
     if (stashedEditorText === null) return;
     if (ctx.ui.getEditorText().trim() === "") {
@@ -815,6 +889,7 @@ export default function (pi: ExtensionAPI) {
       ctx,
       getStashCount,
       getEventsSnapshot,
+      getTokenRateSnapshot,
       () => eventsConfig.display.iconSet,
       () => eventsConfig.layout,
       getStatusWidgetPlacement,
@@ -974,6 +1049,7 @@ export default function (pi: ExtensionAPI) {
     context: "Context usage",
     cost: "Session cost",
     tokens: "Token counters",
+    rate: "Token rate",
     chips: "Notification chips",
     stash: "Stash count",
   };
@@ -985,6 +1061,7 @@ export default function (pi: ExtensionAPI) {
     context: "Percentage of usable context window (33k autocompact buffer reserved) with colored bar. CLI id: `context`.",
     cost: "Session total in USD when greater than zero. CLI id: `cost`.",
     tokens: "Cumulative `↑input ↓output R{cacheRead} W{cacheWrite}` counters. Enter to open submenu and toggle each one independently. CLI id: `tokens`.",
+    rate: "Live/final assistant output speed in tok/s, estimated from stream deltas and finalized from provider usage when available. CLI id: `rate`.",
     chips: "Notify-status lane fed by `@wierdbytes/pi-events` consumers. CLI id: `chips`.",
     stash: "`📦 N` showing how many prompts are saved. CLI id: `stash`.",
   };
@@ -1398,6 +1475,41 @@ export default function (pi: ExtensionAPI) {
   const formatStatusWidgetPlacement = (placement: StatusWidgetPlacement): string =>
     placement === "belowEditor" ? "below prompt" : "above prompt";
 
+  const formatTokenRateStatus = (ctx: ExtensionContext): string => {
+    const snapshot = tokenRateTracker.getSnapshot();
+    if (!snapshot) return `${shortenModelName(ctx.model)}: -- tok/s`;
+    const rate = snapshot.finalRate ?? rateFromTokenRateSnapshot(snapshot);
+    const state = snapshot.active ? "live" : "final";
+    return `${snapshot.model}: ${formatTokenRate(rate)} tok/s (${state})`;
+  };
+
+  const onOff = (enabled: boolean): string => (enabled ? "on" : "off");
+  const yesNo = (enabled: boolean): string => (enabled ? "yes" : "no");
+
+  const formatToastStatusLine = (toast: ActiveToast | null): string => {
+    if (!toast) return "(none)";
+    return `${toast.event.level ?? "info"} — ${toast.event.message}`;
+  };
+
+  const formatToastTimeouts = (): string =>
+    Object.entries(eventsConfig.toastTimeouts)
+      .map(([level, ms]) => `${level}=${ms === 0 ? "sticky" : `${ms}ms`}`)
+      .join(" ");
+
+  const formatTokenToggleLine = (layout: LayoutConfig): string =>
+    [
+      layout.tokens.input ? "in" : "-in",
+      layout.tokens.output ? "out" : "-out",
+      layout.tokens.cacheRead ? "R" : "-R",
+      layout.tokens.cacheWrite ? "W" : "-W",
+    ].join(" ");
+
+  const formatSubagentsSummary = (): string => {
+    const counts = subagentsTracker.getCounts();
+    const state = onOff(eventsConfig.subagents.enabled);
+    return `${state} (${counts.running} running / ${counts.created} queued / ${counts.total} total)`;
+  };
+
   /** Read-only structured dump used by callers that can't host the
    *  overlay (RPC, `--print` mode). */
   const printStatusDump = (ctx: ExtensionContext): void => {
@@ -1405,36 +1517,89 @@ export default function (pi: ExtensionAPI) {
     const display = eventsConfig.display;
     const subagents = eventsConfig.subagents;
     const layout = eventsConfig.layout;
-    const counts = subagentsTracker.getCounts();
     const lines = [
-      `statusline:    ${display.statuslineEnabled ? "on" : "off"}`,
+      `statusline:    ${onOff(display.statuslineEnabled)}`,
       `footer:        ${display.footerHidden ? "hidden" : "shown"}`,
       `placement:     ${formatStatusWidgetPlacement(display.statusWidgetPlacement)}`,
-      `fixed editor:  ${display.fixedEditorEnabled ? "on" : "off"}`,
-      `mouse scroll:  ${display.mouseScrollEnabled ? "on" : "off"}`,
+      `fixed editor:  ${onOff(display.fixedEditorEnabled)}`,
+      `mouse scroll:  ${onOff(display.mouseScrollEnabled)}`,
       `icon set:      ${display.iconSet}`,
+      `token rate:    ${formatTokenRateStatus(ctx)}`,
       `chips:         ${snap.chips.length}`,
-      `toast:         ${snap.toast ? `${snap.toast.event.level ?? "info"} — ${snap.toast.event.message}` : "(none)"}`,
+      `toast:         ${formatToastStatusLine(snap.toast)}`,
       `events log:    ${eventsTracker.getLog().length} entries`,
-      `toast timeouts: ${Object.entries(eventsConfig.toastTimeouts)
-        .map(([level, ms]) => `${level}=${ms === 0 ? "sticky" : `${ms}ms`}`)
-        .join(" ")}`,
+      `toast timeouts: ${formatToastTimeouts()}`,
       `layout:        ${formatLayoutLine()}`,
       `  separator:   ${JSON.stringify(layout.separator)}`,
-      `  model.think: ${layout.model.showThinking ? "yes" : "no"}`,
-      `  tokens:      ${[
-        layout.tokens.input ? "in" : "-in",
-        layout.tokens.output ? "out" : "-out",
-        layout.tokens.cacheRead ? "R" : "-R",
-        layout.tokens.cacheWrite ? "W" : "-W",
-      ].join(" ")}`,
-      `subagents:     ${subagents.enabled ? "on" : "off"} (${counts.running} running / ${counts.created} queued / ${counts.total} total)`,
+      `  model.think: ${yesNo(layout.model.showThinking)}`,
+      `  tokens:      ${formatTokenToggleLine(layout)}`,
+      `subagents:     ${formatSubagentsSummary()}`,
       `  long-ms:     ${subagents.longCompletionMs}`,
-      `  on failure: ${subagents.toastOnFailure ? "yes" : "no"}`,
-      `  on long:    ${subagents.toastOnLongCompletion ? "yes" : "no"}`,
-      `  on schedule: ${subagents.toastOnScheduled ? "yes" : "no"}`,
+      `  on failure: ${yesNo(subagents.toastOnFailure)}`,
+      `  on long:    ${yesNo(subagents.toastOnLongCompletion)}`,
+      `  on schedule: ${yesNo(subagents.toastOnScheduled)}`,
     ];
     ctx.ui.notify(lines.join("\n"), "info");
+  };
+
+  const notifyUnknownBlock = (ctx: ExtensionContext, id: string | undefined): void => {
+    ctx.ui.notify(
+      `Unknown block: ${id ?? "(none)"}. Valid: ${KNOWN_BLOCK_IDS.join(", ")}`,
+      "warning",
+    );
+  };
+
+  const resetLayout = (ctx: ExtensionContext): void => {
+    applyLayoutChange(ctx, {
+      order: [...KNOWN_BLOCK_IDS],
+      enabled: KNOWN_BLOCK_IDS.reduce(
+        (acc, id) => {
+          acc[id] = true;
+          return acc;
+        },
+        {} as Record<BlockId, boolean>,
+      ),
+      model: { showThinking: true },
+      tokens: { input: true, output: true, cacheRead: true, cacheWrite: true },
+    });
+    ctx.ui.notify("layout: reset to defaults", "info");
+  };
+
+  const toggleLayoutBlock = (ctx: ExtensionContext, id: string | undefined): void => {
+    if (!isKnownBlockId(id)) return notifyUnknownBlock(ctx, id);
+    const next = !eventsConfig.layout.enabled[id];
+    applyLayoutChange(ctx, { enabled: { ...eventsConfig.layout.enabled, [id]: next } });
+    ctx.ui.notify(`layout: ${id} ${next ? "enabled" : "disabled"}`, "info");
+  };
+
+  const layoutMoveTarget = (direction: string | undefined, index: number, count: number): number => {
+    if (direction === "up") return Math.max(0, index - 1);
+    if (direction === "down") return Math.min(count - 1, index + 1);
+    if (direction === "top") return 0;
+    if (direction === "bottom") return count - 1;
+    return -1;
+  };
+
+  const moveLayoutBlock = (
+    ctx: ExtensionContext,
+    id: string | undefined,
+    direction: string | undefined,
+  ): void => {
+    if (!isKnownBlockId(id)) return notifyUnknownBlock(ctx, id);
+    const order = [...eventsConfig.layout.order];
+    const idx = order.indexOf(id);
+    if (idx < 0) return;
+
+    const target = layoutMoveTarget(direction, idx, order.length);
+    if (target < 0) {
+      ctx.ui.notify("Usage: /statusline layout move <block> <up|down|top|bottom>", "warning");
+      return;
+    }
+
+    order.splice(idx, 1);
+    order.splice(target, 0, id);
+    applyLayoutChange(ctx, { order });
+    ctx.ui.notify(`layout: moved ${id} → position ${target + 1}`, "info");
   };
 
   /** Imperative `/statusline layout` dispatcher: prints / resets /
@@ -1446,73 +1611,17 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(`layout: ${formatLayoutLine()}`, "info");
       return;
     }
-    if (sub === "reset") {
-      applyLayoutChange(ctx, {
-        order: [...KNOWN_BLOCK_IDS],
-        enabled: KNOWN_BLOCK_IDS.reduce(
-          (acc, id) => {
-            acc[id] = true;
-            return acc;
-          },
-          {} as Record<BlockId, boolean>,
-        ),
-        model: { showThinking: true },
-        tokens: { input: true, output: true, cacheRead: true, cacheWrite: true },
-      });
-      ctx.ui.notify("layout: reset to defaults", "info");
-      return;
-    }
-    if (sub === "toggle") {
-      const id = tokens[1];
-      if (!isKnownBlockId(id)) {
-        ctx.ui.notify(
-          `Unknown block: ${id ?? "(none)"}. Valid: ${KNOWN_BLOCK_IDS.join(", ")}`,
-          "warning",
-        );
-        return;
-      }
-      const next = !eventsConfig.layout.enabled[id];
-      applyLayoutChange(ctx, { enabled: { ...eventsConfig.layout.enabled, [id]: next } });
-      ctx.ui.notify(`layout: ${id} ${next ? "enabled" : "disabled"}`, "info");
-      return;
-    }
-    if (sub === "move") {
-      const id = tokens[1];
-      const direction = tokens[2];
-      if (!isKnownBlockId(id)) {
-        ctx.ui.notify(
-          `Unknown block: ${id ?? "(none)"}. Valid: ${KNOWN_BLOCK_IDS.join(", ")}`,
-          "warning",
-        );
-        return;
-      }
-      const order = [...eventsConfig.layout.order];
-      const idx = order.indexOf(id);
-      if (idx < 0) return;
-      const target =
-        direction === "up"
-          ? Math.max(0, idx - 1)
-          : direction === "down"
-          ? Math.min(order.length - 1, idx + 1)
-          : direction === "top"
-          ? 0
-          : direction === "bottom"
-          ? order.length - 1
-          : -1;
-      if (target < 0) {
-        ctx.ui.notify("Usage: /statusline layout move <block> <up|down|top|bottom>", "warning");
-        return;
-      }
-      order.splice(idx, 1);
-      order.splice(target, 0, id);
-      applyLayoutChange(ctx, { order });
-      ctx.ui.notify(`layout: moved ${id} → position ${target + 1}`, "info");
-      return;
-    }
+    if (sub === "reset") return resetLayout(ctx);
+    if (sub === "toggle") return toggleLayoutBlock(ctx, tokens[1]);
+    if (sub === "move") return moveLayoutBlock(ctx, tokens[1], tokens[2]);
     ctx.ui.notify(
       "Usage: /statusline layout [status|reset|toggle <block>|move <block> <up|down|top|bottom>]",
       "info",
     );
+  };
+
+  const setRateBlockEnabled = (ctx: ExtensionContext, enabled: boolean): void => {
+    applyLayoutChange(ctx, { enabled: { ...eventsConfig.layout.enabled, rate: enabled } });
   };
 
   /** Print the most recent 16 entries from the events log. */
@@ -1533,101 +1642,123 @@ export default function (pi: ExtensionAPI) {
     ctx.ui.notify(formatted, "info");
   };
 
+  const handleRateCommand = (ctx: ExtensionContext, tokens: string[]): void => {
+    const action = parseTokenRateCommand(tokens);
+    if (action === "off") {
+      setRateBlockEnabled(ctx, false);
+      ctx.ui.notify("token-rate block disabled", "info");
+      return;
+    }
+    if (action === "on") {
+      setRateBlockEnabled(ctx, true);
+      ctx.ui.notify("token-rate block enabled", "info");
+      return;
+    }
+    if (action === "reset") {
+      tokenRateTracker.reset();
+      requestTokenRateRender(true);
+      ctx.ui.notify("token-rate reset", "info");
+      return;
+    }
+    if (action === "status") {
+      ctx.ui.notify(formatTokenRateStatus(ctx), "info");
+      return;
+    }
+    ctx.ui.notify("Usage: /statusline rate [on|off|reset|status]", "warning");
+  };
+
+  const STATUSLINE_USAGE =
+    "Usage: /statusline [on|off|toggle|status|placement [above|below]|icons [set]|rate [status|on|off|reset]|layout [status|reset|toggle <block>|move <block> <dir>]|events log|events clear]  (no args ⇒ open settings overlay)";
+
+  type StatuslineCommandHandler = (
+    ctx: ExtensionContext,
+    tokens: string[],
+  ) => void | Promise<void>;
+
+  const handleStatuslineSwitch = (ctx: ExtensionContext, action: "on" | "off" | "toggle"): void => {
+    const next = action === "toggle" ? !statuslineEnabled : action === "on";
+    applyDisplayChange(ctx, { statuslineEnabled: next });
+    ctx.ui.notify(`wierd statusline ${next ? "enabled" : "disabled"}`, "info");
+  };
+
+  const handlePlacementCommand = (ctx: ExtensionContext, tokens: string[]): void => {
+    const sub = tokens[0];
+    if (!sub || sub === "status") {
+      ctx.ui.notify(`placement: ${formatStatusWidgetPlacement(statusWidgetPlacement)}`, "info");
+      return;
+    }
+    const next = parseStatusWidgetPlacement(sub);
+    if (!next) {
+      ctx.ui.notify("Usage: /statusline placement <above|below>", "warning");
+      return;
+    }
+    applyDisplayChange(ctx, { statusWidgetPlacement: next });
+    ctx.ui.notify(`placement: ${formatStatusWidgetPlacement(next)}`, "info");
+  };
+
+  const printIconSetStatus = (ctx: ExtensionContext): void => {
+    const lines = [
+      `current: ${eventsConfig.display.iconSet}`,
+      `available:`,
+      ...VALID_ICON_SETS.map(
+        (s) => `  ${s === eventsConfig.display.iconSet ? "*" : " "} ${s.padEnd(10)} — ${ICON_SET_LABELS[s]}`,
+      ),
+    ];
+    ctx.ui.notify(lines.join("\n"), "info");
+  };
+
+  const handleIconsCommand = (ctx: ExtensionContext, tokens: string[]): void => {
+    const sub = tokens[0];
+    if (!sub || sub === "status") return printIconSetStatus(ctx);
+    if (!isIconSet(sub)) {
+      ctx.ui.notify(`Unknown icon set: ${sub}. Valid: ${VALID_ICON_SETS.join(" | ")}`, "warning");
+      return;
+    }
+    applyDisplayChange(ctx, { iconSet: sub });
+    ctx.ui.notify(`icon set: ${sub} (${ICON_SET_LABELS[sub]})`, "info");
+  };
+
+  const handleEventsCommand = (ctx: ExtensionContext, tokens: string[]): void => {
+    const sub = tokens[0];
+    if (sub === "log") return printEventsLog(ctx);
+    if (sub === "clear") {
+      eventsTracker.clearAll();
+      ctx.ui.notify("events: cleared chips and toast", "info");
+      return;
+    }
+    ctx.ui.notify("Usage: /statusline events [log|clear]", "info");
+  };
+
+  const statuslineCommandHandlers: Record<string, StatuslineCommandHandler> = {
+    on: (ctx) => handleStatuslineSwitch(ctx, "on"),
+    off: (ctx) => handleStatuslineSwitch(ctx, "off"),
+    toggle: (ctx) => handleStatuslineSwitch(ctx, "toggle"),
+    status: (ctx) => printStatusDump(ctx),
+    placement: handlePlacementCommand,
+    icons: handleIconsCommand,
+    rate: handleRateCommand,
+    layout: handleLayoutCommand,
+    events: handleEventsCommand,
+  };
+
   pi.registerCommand("statusline", {
     description:
-      "Open the @wierdbytes/pi-statusline settings overlay (no args). Action subcommands: on | off | toggle | status | placement [above|below] | icons [set] | layout [...] | events log | events clear",
+      "Open the @wierdbytes/pi-statusline settings overlay (no args). Action subcommands: on | off | toggle | status | placement [above|below] | icons [set] | rate [...] | layout [...] | events log | events clear",
     handler: async (args, ctx) => {
       currentCtx = ctx;
       const tokens = (args ?? "").trim().split(/\s+/).filter(Boolean);
       const cmd = tokens[0];
-
-      // Bare `/statusline` opens the overlay.
-      if (!cmd) return openConfigOverlay(ctx);
-
-      // Imperative master-switch shortcuts — single keystroke beats
-      // navigating the modal.
-      if (cmd === "on" || cmd === "off" || cmd === "toggle") {
-        const next = cmd === "toggle" ? !statuslineEnabled : cmd === "on";
-        applyDisplayChange(ctx, { statuslineEnabled: next });
-        ctx.ui.notify(`wierd statusline ${next ? "enabled" : "disabled"}`, "info");
+      if (!cmd) {
+        await openConfigOverlay(ctx);
         return;
       }
 
-      if (cmd === "status") {
-        printStatusDump(ctx);
+      const handler = statuslineCommandHandlers[cmd];
+      if (!handler) {
+        ctx.ui.notify(STATUSLINE_USAGE, "info");
         return;
       }
-
-      if (cmd === "placement") {
-        const sub = tokens[1];
-        if (!sub || sub === "status") {
-          ctx.ui.notify(`placement: ${formatStatusWidgetPlacement(statusWidgetPlacement)}`, "info");
-          return;
-        }
-        const next = parseStatusWidgetPlacement(sub);
-        if (!next) {
-          ctx.ui.notify("Usage: /statusline placement <above|below>", "warning");
-          return;
-        }
-        applyDisplayChange(ctx, { statusWidgetPlacement: next });
-        ctx.ui.notify(`placement: ${formatStatusWidgetPlacement(next)}`, "info");
-        return;
-      }
-
-      // Quick imperative switch for the icon set. `/statusline icons`
-      // (no args) prints the current set + lists the valid choices;
-      // `/statusline icons <set>` flips it via the same side-effect
-      // bus the modal uses.
-      if (cmd === "icons") {
-        const sub = tokens[1];
-        if (!sub || sub === "status") {
-          const lines = [
-            `current: ${eventsConfig.display.iconSet}`,
-            `available:`,
-            ...VALID_ICON_SETS.map(
-              (s) => `  ${s === eventsConfig.display.iconSet ? "*" : " "} ${s.padEnd(10)} — ${ICON_SET_LABELS[s]}`,
-            ),
-          ];
-          ctx.ui.notify(lines.join("\n"), "info");
-          return;
-        }
-        if (!isIconSet(sub)) {
-          ctx.ui.notify(
-            `Unknown icon set: ${sub}. Valid: ${VALID_ICON_SETS.join(" | ")}`,
-            "warning",
-          );
-          return;
-        }
-        applyDisplayChange(ctx, { iconSet: sub });
-        ctx.ui.notify(`icon set: ${sub} (${ICON_SET_LABELS[sub]})`, "info");
-        return;
-      }
-
-      // Imperative layout dispatch — mirrors the Layout tab in the
-      // modal but stays usable from RPC / scripted sessions.
-      if (cmd === "layout") {
-        handleLayoutCommand(ctx, tokens.slice(1));
-        return;
-      }
-
-      // Read/clear utilities for the events log live outside the modal
-      // because they print or mutate runtime state, not config.
-      if (cmd === "events") {
-        const sub = tokens[1];
-        if (sub === "log") return printEventsLog(ctx);
-        if (sub === "clear") {
-          eventsTracker.clearAll();
-          ctx.ui.notify("events: cleared chips and toast", "info");
-          return;
-        }
-        ctx.ui.notify("Usage: /statusline events [log|clear]", "info");
-        return;
-      }
-
-      ctx.ui.notify(
-        "Usage: /statusline [on|off|toggle|status|placement [above|below]|icons [set]|layout [status|reset|toggle <block>|move <block> <dir>]|events log|events clear]  (no args ⇒ open settings overlay)",
-        "info",
-      );
+      await handler(ctx, tokens.slice(1));
     },
   });
 }

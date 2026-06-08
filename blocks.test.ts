@@ -47,6 +47,7 @@ function makeInputs(overrides: Partial<RenderInputs> = {}): RenderInputs {
     totalOutput: 700,
     totalCacheRead: 0,
     totalCacheWrite: 0,
+    tokenRate: null,
     stashCount: 0,
     chips: [],
     iconSet: "ascii",
@@ -102,7 +103,9 @@ describe("block renderers (in isolation)", () => {
     expect(out).toContain(C_RED);
     expect(out).not.toContain(C_GREEN);
   });
+});
 
+describe("usage block renderers", () => {
   it("renderContext is empty when no context window", () => {
     expect(BLOCK_RENDERERS.context(makeInputs({ contextWindow: 0 }))).toBe("");
   });
@@ -120,7 +123,9 @@ describe("block renderers (in isolation)", () => {
   it("renderCost prints a 2-decimal USD value", () => {
     expect(BLOCK_RENDERERS.cost(makeInputs({ cost: 12.345 }))).toContain("12.35");
   });
+});
 
+describe("tokens, rate, and stash block renderers", () => {
   it("renderTokens respects each sub-toggle independently", () => {
     const layout = cloneDefaultLayout();
     layout.tokens = { input: false, output: true, cacheRead: false, cacheWrite: false };
@@ -149,6 +154,37 @@ describe("block renderers (in isolation)", () => {
       }),
     );
     expect(out).toBe("");
+  });
+
+  it("registers a token-rate renderer", () => {
+    expect(typeof (BLOCK_RENDERERS as Record<string, unknown>).rate).toBe("function");
+  });
+
+  it("renderRate is empty before any measurement", () => {
+    const renderRate = (BLOCK_RENDERERS as Record<string, any>).rate;
+    expect(typeof renderRate).toBe("function");
+    expect(renderRate(makeInputs({ tokenRate: null } as any))).toBe("");
+  });
+
+  it("renderRate shows final tok/s with the active icon set", () => {
+    const renderRate = (BLOCK_RENDERERS as Record<string, any>).rate;
+    expect(typeof renderRate).toBe("function");
+    const out = renderRate(
+      makeInputs({
+        tokenRate: {
+          active: false,
+          model: "sonnet",
+          startedAt: 0,
+          lastAt: 1000,
+          estimatedTokens: 0,
+          finalTokens: 42,
+          finalRate: 42,
+        },
+      } as any),
+    );
+    expect(out).toContain(C_GREEN);
+    expect(out).toContain(resolveIcon("ascii", "rate" as any));
+    expect(out).toContain("42.0 tok/s");
   });
 
   it("renderStash is empty when nothing stashed", () => {

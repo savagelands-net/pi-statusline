@@ -1,6 +1,6 @@
 {
   "name": "@savagelands-net/pi-statusline",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Minimal modular statusline extension for pi coding agent",
   "type": "module",
   "files": [

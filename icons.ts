@@ -39,6 +39,7 @@ export type IconKey =
   | "folder"
   | "git"
   | "stash"
+  | "rate"
   | "debug"
   | "info"
   | "success"
@@ -91,6 +92,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
     folder: "\uf07b",    //  nf-fa-folder
     git: "\uf126",       //  nf-fa-code_fork
     stash: "\uf487",     //  nf-oct-package
+    rate: "\uf0e7",      //  nf-fa-bolt
     debug: "\uf188",     //  nf-fa-bug
     info: "\uf449",      //  nf-oct-info
     success: "\uf42e",   //  nf-oct-check
@@ -105,6 +107,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
     folder: "▣",
     git: "⎇",
     stash: "▤",
+    rate: "ϟ",
     debug: "?",
     info: "ⓘ",
     success: "✓",
@@ -119,6 +122,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
     folder: "[d]",
     git: "[g]",
     stash: "[s]",
+    rate: "[r]",
     debug: "[?]",
     info: "[i]",
     success: "[ok]",
@@ -133,6 +137,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
     folder: "▣",
     git: "⎇",
     stash: "≡",
+    rate: "↯",
     debug: "?",
     info: "i",
     success: "✓",
@@ -147,6 +152,7 @@ export const ICON_SETS: Record<IconSet, Record<IconKey, string>> = {
     folder: "📁",
     git: "🌿",
     stash: "📦",
+    rate: "⚡",
     debug: "🔍",
     info: "ℹ️",
     success: "✅",

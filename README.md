@@ -18,6 +18,7 @@ Compared with the upstream `@wierdbytes` package, this fork adds:
 - **Folder icon in the path block** — the cwd segment has a matching icon for the active icon set.
 - **Git branch icon** — the git block now includes an icon, branch name, and clean/dirty state.
 - **Expanded icon sets** — choose Nerd Font, plain Unicode, ASCII, minimal, or emoji styles.
+- **Token-rate block** — show live/final assistant output speed in `tok/s`, adapted from `tok-rate-footer`.
 
 ## Screenshot
 
@@ -60,6 +61,7 @@ Each block only appears when relevant, and block order/visibility is configurabl
 - **Context** — usable context percentage with a progress bar.
 - **Cost** — session cost when greater than zero.
 - **Tokens** — input, output, cache-read, and cache-write counters with individual sub-toggles.
+- **Rate** — live/final assistant output speed in `tok/s`; live rate is estimated from stream deltas and final rate prefers provider usage output when available.
 - **Stash** — saved prompt count from the editor stash history.
 - **Subagents** — active/queued subagent summary when a compatible subagents extension is loaded.
 
@@ -68,7 +70,7 @@ Each block only appears when relevant, and block order/visibility is configurabl
 The statusline ships with reorderable blocks:
 
 ```text
-model > path > git > context > cost > tokens > chips > stash
+model > path > git > context > cost > tokens > rate > chips > stash
 ```
 
 Open the settings overlay with:
@@ -205,6 +207,7 @@ When a compatible subagents extension emits `subagents:*` events, this statuslin
 /statusline mouse-scroll on|off|toggle
 /statusline events [status|log|clear|toast-ms <level> <ms>]
 /statusline icons [nerd-font|plain|ascii|minimal|emoji|status]
+/statusline rate [status|on|off|reset]
 /statusline layout [status|reset|toggle <block>|move <block> <up|down|top|bottom>]
 /statusline subagents [status|on|off|long-ms <ms>|toast-failure <on|off>|toast-long <on|off>|toast-scheduled <on|off>]
 ```
@@ -241,4 +244,4 @@ pi install ./
 
 Forked from [`@wierdbytes/pi-statusline`](https://www.npmjs.com/package/@wierdbytes/pi-statusline) by [`@wierdbytes`](https://www.npmjs.com/~wierdbytes).
 
-Also inspired by [`pi-powerline-footer`](https://github.com/nicobailon/pi-powerline-footer) by [`@nicobailon`](https://github.com/nicobailon).
+Also inspired by [`pi-powerline-footer`](https://github.com/nicobailon/pi-powerline-footer) by [`@nicobailon`](https://github.com/nicobailon), and the token-rate logic from [`tok-rate-footer`](https://github.com/Cass67/tok-rate-footer) by [`@Cass67`](https://github.com/Cass67).

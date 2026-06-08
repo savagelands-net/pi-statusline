@@ -70,6 +70,7 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = Object.freeze({
     context: true,
     cost: true,
     tokens: true,
+    rate: true,
     chips: true,
     stash: true,
   }) as Record<BlockId, boolean>,
@@ -94,6 +95,61 @@ export function cloneDefaultLayout(): LayoutConfig {
   };
 }
 
+function normaliseLayoutOrder(rawOrder: unknown, fallback: BlockId[]): BlockId[] {
+  if (!Array.isArray(rawOrder)) return fallback;
+
+  const seen = new Set<BlockId>();
+  const sanitized: BlockId[] = [];
+  for (const candidate of rawOrder) {
+    if (typeof candidate !== "string") continue;
+    if (!KNOWN_BLOCK_ID_SET.has(candidate as BlockId)) continue;
+    const id = candidate as BlockId;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    sanitized.push(id);
+  }
+
+  // Append any known ids missing from the persisted order so a new
+  // block added in a future release surfaces automatically.
+  for (const id of KNOWN_BLOCK_IDS) {
+    if (!seen.has(id)) sanitized.push(id);
+  }
+  return sanitized;
+}
+
+function mergeEnabledConfig(
+  current: Record<BlockId, boolean>,
+  rawEnabled: unknown,
+): Record<BlockId, boolean> {
+  if (!rawEnabled || typeof rawEnabled !== "object") return current;
+  const src = rawEnabled as Record<string, unknown>;
+  const next = { ...current };
+  for (const id of KNOWN_BLOCK_IDS) {
+    if (typeof src[id] === "boolean") next[id] = src[id] as boolean;
+  }
+  return next;
+}
+
+function mergeModelSubToggles(current: ModelSubToggles, rawModel: unknown): ModelSubToggles {
+  if (!rawModel || typeof rawModel !== "object") return current;
+  const src = rawModel as Record<string, unknown>;
+  return typeof src.showThinking === "boolean"
+    ? { ...current, showThinking: src.showThinking }
+    : current;
+}
+
+function mergeTokensSubToggles(current: TokensSubToggles, rawTokens: unknown): TokensSubToggles {
+  if (!rawTokens || typeof rawTokens !== "object") return current;
+  const src = rawTokens as Record<string, unknown>;
+  return {
+    ...current,
+    ...(typeof src.input === "boolean" ? { input: src.input } : {}),
+    ...(typeof src.output === "boolean" ? { output: src.output } : {}),
+    ...(typeof src.cacheRead === "boolean" ? { cacheRead: src.cacheRead } : {}),
+    ...(typeof src.cacheWrite === "boolean" ? { cacheWrite: src.cacheWrite } : {}),
+  };
+}
+
 /**
  * Normalise a (potentially partial / malformed) layout slice against
  * the defaults. Returns a fully-populated `LayoutConfig`:
@@ -109,53 +165,14 @@ export function normaliseLayoutConfig(raw: Partial<LayoutConfig> | undefined): L
   const merged = cloneDefaultLayout();
   if (!raw || typeof raw !== "object") return merged;
 
-  // ── order ───────────────────────────────────────────────────────────
-  if (Array.isArray(raw.order)) {
-    const seen = new Set<BlockId>();
-    const sanitized: BlockId[] = [];
-    for (const candidate of raw.order) {
-      if (typeof candidate !== "string") continue;
-      if (!KNOWN_BLOCK_ID_SET.has(candidate as BlockId)) continue;
-      const id = candidate as BlockId;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      sanitized.push(id);
-    }
-    // Append any known ids missing from the persisted order so a new
-    // block added in a future release surfaces automatically.
-    for (const id of KNOWN_BLOCK_IDS) {
-      if (!seen.has(id)) sanitized.push(id);
-    }
-    merged.order = sanitized;
-  }
-
-  // ── enabled ─────────────────────────────────────────────────────────
-  if (raw.enabled && typeof raw.enabled === "object") {
-    const src = raw.enabled as Record<string, unknown>;
-    for (const id of KNOWN_BLOCK_IDS) {
-      if (typeof src[id] === "boolean") merged.enabled[id] = src[id] as boolean;
-    }
-  }
-
-  // ── model sub-toggles ───────────────────────────────────────────────
-  if (raw.model && typeof raw.model === "object") {
-    const src = raw.model as unknown as Record<string, unknown>;
-    if (typeof src.showThinking === "boolean") merged.model.showThinking = src.showThinking;
-  }
-
-  // ── tokens sub-toggles ──────────────────────────────────────────────
-  if (raw.tokens && typeof raw.tokens === "object") {
-    const src = raw.tokens as unknown as Record<string, unknown>;
-    if (typeof src.input === "boolean") merged.tokens.input = src.input;
-    if (typeof src.output === "boolean") merged.tokens.output = src.output;
-    if (typeof src.cacheRead === "boolean") merged.tokens.cacheRead = src.cacheRead;
-    if (typeof src.cacheWrite === "boolean") merged.tokens.cacheWrite = src.cacheWrite;
-  }
-
-  // ── separator ───────────────────────────────────────────────────────
-  merged.separator = clampSeparator(raw.separator);
-
-  return merged;
+  return {
+    ...merged,
+    order: normaliseLayoutOrder(raw.order, merged.order),
+    enabled: mergeEnabledConfig(merged.enabled, raw.enabled),
+    model: mergeModelSubToggles(merged.model, raw.model),
+    tokens: mergeTokensSubToggles(merged.tokens, raw.tokens),
+    separator: clampSeparator(raw.separator),
+  };
 }
 
 /**

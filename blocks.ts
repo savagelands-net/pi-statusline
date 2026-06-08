@@ -25,6 +25,11 @@ import { basename, dirname } from "node:path";
 import type { IconKey, IconSet } from "./icons.ts";
 import { resolveIcon } from "./icons.ts";
 import type { LayoutConfig } from "./layout-config.ts";
+import {
+  formatTokenRate,
+  rateFromTokenRateSnapshot,
+  type TokenRateSnapshot,
+} from "./token-rate.ts";
 
 // ─────────────────────────────────────────────────────────────────────
 // Color constants (Tokyo Night Storm palette)
@@ -223,6 +228,7 @@ export const KNOWN_BLOCK_IDS = [
   "context",
   "cost",
   "tokens",
+  "rate",
   "chips",
   "stash",
 ] as const;
@@ -248,6 +254,7 @@ export interface RenderInputs {
   totalOutput: number;
   totalCacheRead: number;
   totalCacheWrite: number;
+  tokenRate: TokenRateSnapshot | null;
   stashCount: number;
   chips: NotifyStatusEvent[];
   iconSet: IconSet;
@@ -313,7 +320,7 @@ const renderContext: BlockRenderer = (inputs) => {
 /** `cost` block — session total in USD; empty when zero. */
 const renderCost: BlockRenderer = (inputs) => {
   if (inputs.cost <= 0) return "";
-  return `${C_GRAY}\$${formatCost(inputs.cost)}${C_RESET}`;
+  return `${C_GRAY}$${formatCost(inputs.cost)}${C_RESET}`;
 };
 
 /**
@@ -331,6 +338,14 @@ const renderTokens: BlockRenderer = (inputs) => {
   if (t.cacheWrite && inputs.totalCacheWrite > 0) segments.push(`W${formatTokens(inputs.totalCacheWrite)}`);
   if (segments.length === 0) return "";
   return `${C_GRAY}${segments.join(" ")}${C_RESET}`;
+};
+
+/** `rate` block — latest model output speed; empty until a stream has measured tokens. */
+const renderRate: BlockRenderer = (inputs) => {
+  if (!inputs.tokenRate) return "";
+  const rate = inputs.tokenRate.finalRate ?? rateFromTokenRateSnapshot(inputs.tokenRate);
+  const color = inputs.tokenRate.active ? C_BLUE : C_GREEN;
+  return `${color}${resolveIcon(inputs.iconSet, "rate")} ${formatTokenRate(rate)} tok/s${C_RESET}`;
 };
 
 /**
@@ -356,6 +371,7 @@ export const BLOCK_RENDERERS: Record<BlockId, BlockRenderer> = {
   context: renderContext,
   cost: renderCost,
   tokens: renderTokens,
+  rate: renderRate,
   chips: renderChips,
   stash: renderStash,
 };

@@ -60,6 +60,7 @@ describe("toggleBlock", () => {
     context: true,
     cost: true,
     tokens: true,
+    rate: true,
     chips: true,
     stash: true,
   } as Record<BlockId, boolean>;
