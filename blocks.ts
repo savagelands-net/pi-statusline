@@ -26,9 +26,9 @@ import type { IconKey, IconSet } from "./icons.ts";
 import { resolveIcon } from "./icons.ts";
 import type { LayoutConfig } from "./layout-config.ts";
 import {
-  formatTokenRate,
-  rateFromTokenRateSnapshot,
-  type TokenRateSnapshot,
+	formatTokenRate,
+	rateFromTokenRateSnapshot,
+	type TokenRateSnapshot,
 } from "./token-rate.ts";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -47,21 +47,21 @@ export const C_GRAY = "\x1b[38;2;86;95;137m";
 export const C_RESET = "\x1b[0m";
 
 const THINK_COLORS: Record<string, string> = {
-  off: C_GRAY,
-  minimal: C_GRAY,
-  low: C_BLUE,
-  medium: C_CYAN,
-  high: C_ORANGE,
-  xhigh: C_RED,
+	off: C_GRAY,
+	minimal: C_GRAY,
+	low: C_BLUE,
+	medium: C_CYAN,
+	high: C_ORANGE,
+	xhigh: C_RED,
 };
 
 const THINK_LABELS: Record<string, string> = {
-  off: "off",
-  minimal: "min",
-  low: "low",
-  medium: "med",
-  high: "high",
-  xhigh: "xhigh",
+	off: "off",
+	minimal: "min",
+	low: "low",
+	medium: "med",
+	high: "high",
+	xhigh: "xhigh",
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -85,57 +85,59 @@ const CHIP_LABEL_MAX_WIDTH = 16;
  * the widget layout.
  */
 export function oneLine(s: string): string {
-  return s.replace(/\s+/g, " ").trim();
+	return s.replace(/\s+/g, " ").trim();
 }
 
 export function shortenPath(cwd: string): string {
-  const segments = cwd.split("/");
-  if (segments.length <= 3) return cwd;
-  const n = segments.length;
-  return `…/${segments[n - 3]}/${segments[n - 2]}/${segments[n - 1]}`;
+	const segments = cwd.split("/");
+	if (segments.length <= 3) return cwd;
+	const n = segments.length;
+	return `…/${segments[n - 3]}/${segments[n - 2]}/${segments[n - 1]}`;
 }
 
 export function formatTokens(n: number): string {
-  if (n < 1000) return `${n}`;
-  if (n < 10000) return `${(n / 1000).toFixed(1)}k`;
-  if (n < 1000000) return `${Math.round(n / 1000)}k`;
-  if (n < 10000000) return `${(n / 1000000).toFixed(1)}M`;
-  return `${Math.round(n / 1000000)}M`;
+	if (n < 1000) return `${n}`;
+	if (n < 10000) return `${(n / 1000).toFixed(1)}k`;
+	if (n < 1000000) return `${Math.round(n / 1000)}k`;
+	if (n < 10000000) return `${(n / 1000000).toFixed(1)}M`;
+	return `${Math.round(n / 1000000)}M`;
 }
 
 export function formatCost(cost: number): string {
-  return cost.toFixed(2);
+	return cost.toFixed(2);
 }
 
-export function shortenModelName(model: { id?: string; name?: string } | undefined): string {
-  let name = model?.name || model?.id || "no-model";
-  if (name.startsWith("Claude ")) name = name.slice(7);
-  if (name.startsWith("anthropic/")) name = name.slice("anthropic/".length);
-  return name;
+export function shortenModelName(
+	model: { id?: string; name?: string } | undefined,
+): string {
+	let name = model?.name || model?.id || "no-model";
+	if (name.startsWith("Claude ")) name = name.slice(7);
+	if (name.startsWith("anthropic/")) name = name.slice("anthropic/".length);
+	return name;
 }
 
 export function resolveThinkingLabel(
-  thinkingLevel: string,
-  thinkingLevelMap: ThinkingLevelMap | undefined,
+	thinkingLevel: string,
+	thinkingLevelMap: ThinkingLevelMap | undefined,
 ): string {
-  const mapped = thinkingLevelMap?.[thinkingLevel as keyof ThinkingLevelMap];
-  if (typeof mapped === "string" && mapped.length > 0) return mapped;
-  return THINK_LABELS[thinkingLevel] ?? thinkingLevel;
+	const mapped = thinkingLevelMap?.[thinkingLevel as keyof ThinkingLevelMap];
+	if (typeof mapped === "string" && mapped.length > 0) return mapped;
+	return THINK_LABELS[thinkingLevel] ?? thinkingLevel;
 }
 
 function buildBar(pct: number, pctColor: string): string {
-  const clamped = Math.max(0, Math.min(100, pct));
-  let filled = Math.floor((clamped * BAR_WIDTH) / 100);
-  if (filled > BAR_WIDTH) filled = BAR_WIDTH;
-  if (filled < 0) filled = 0;
-  const empty = BAR_WIDTH - filled;
-  return `${pctColor}${"▓".repeat(filled)}${C_GRAY}${"░".repeat(empty)}${C_RESET}`;
+	const clamped = Math.max(0, Math.min(100, pct));
+	let filled = Math.floor((clamped * BAR_WIDTH) / 100);
+	if (filled > BAR_WIDTH) filled = BAR_WIDTH;
+	if (filled < 0) filled = 0;
+	const empty = BAR_WIDTH - filled;
+	return `${pctColor}${"▓".repeat(filled)}${C_GRAY}${"░".repeat(empty)}${C_RESET}`;
 }
 
 function pctColorFor(pct: number): string {
-  if (pct > 80) return C_RED;
-  if (pct > 60) return C_YELLOW;
-  return C_GREEN;
+	if (pct > 80) return C_RED;
+	if (pct > 60) return C_YELLOW;
+	return C_GREEN;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -144,75 +146,79 @@ function pctColorFor(pct: number): string {
 
 /** Map a notification level to its icon-key in the active set. */
 const LEVEL_ICON_KEYS: Record<NotifyLevel, IconKey> = {
-  debug: "debug",
-  info: "info",
-  success: "success",
-  warning: "warning",
-  error: "error",
+	debug: "debug",
+	info: "info",
+	success: "success",
+	warning: "warning",
+	error: "error",
 };
 
 /** Resolve the toast/chip icon for a level under the given set. */
 export function levelIcon(set: IconSet, level: NotifyLevel): string {
-  return resolveIcon(set, LEVEL_ICON_KEYS[level]);
+	return resolveIcon(set, LEVEL_ICON_KEYS[level]);
 }
 
 /** ANSI color for a notification level. */
 export function levelColor(level: NotifyLevel | undefined): string {
-  switch (level) {
-    case "error":
-      return C_RED;
-    case "warning":
-      return C_YELLOW;
-    case "success":
-      return C_GREEN;
-    case "debug":
-      return C_GRAY;
-    case "info":
-    default:
-      return C_BLUE;
-  }
+	switch (level) {
+		case "error":
+			return C_RED;
+		case "warning":
+			return C_YELLOW;
+		case "success":
+			return C_GREEN;
+		case "debug":
+			return C_GRAY;
+		case "info":
+		default:
+			return C_BLUE;
+	}
 }
 
 /** Pick a chip icon, preferring the payload's icon, then a level default. */
 function chipIcon(status: NotifyStatusEvent, set: IconSet): string {
-  if (status.icon) return status.icon;
-  // For chips, fall back to a level-derived icon. "error" state without
-  // explicit icon gets a warning glyph regardless of the optional `level`
-  // field so the user always sees something is wrong.
-  if (status.state === "error") return levelIcon(set, "warning");
-  return levelIcon(set, status.level ?? "info");
+	if (status.icon) return status.icon;
+	// For chips, fall back to a level-derived icon. "error" state without
+	// explicit icon gets a warning glyph regardless of the optional `level`
+	// field so the user always sees something is wrong.
+	if (status.state === "error") return levelIcon(set, "warning");
+	return levelIcon(set, status.level ?? "info");
 }
 
 /** Color hint for a chip — `state: "error"` always wins over the
  *  level so error chips render red even when no level is set. */
 function chipColor(status: NotifyStatusEvent): string {
-  if (status.state === "error") return C_RED;
-  if (status.level) return levelColor(status.level);
-  return C_CYAN;
+	if (status.state === "error") return C_RED;
+	if (status.level) return levelColor(status.level);
+	return C_CYAN;
 }
 
 /** Build the inline progress suffix for a chip. Width-aware: drops
  *  the unit / total when budget is tight. */
 function formatChipProgress(progress: NotifyStatusEvent["progress"]): string {
-  if (!progress) return "";
-  const { current, total, unit } = progress;
-  if (typeof total === "number" && total > 0) {
-    const num = `${current}/${total}`;
-    return unit ? ` ${num}${unit}` : ` ${num}`;
-  }
-  return unit ? ` ${current}${unit}` : ` ${current}`;
+	if (!progress) return "";
+	const { current, total, unit } = progress;
+	if (typeof total === "number" && total > 0) {
+		const num = `${current}/${total}`;
+		return unit ? ` ${num}${unit}` : ` ${num}`;
+	}
+	return unit ? ` ${current}${unit}` : ` ${current}`;
 }
 
 /** Render a single chip as `<icon> <colored label><progress>`. */
 export function formatChip(status: NotifyStatusEvent, set: IconSet): string {
-  const icon = chipIcon(status, set);
-  const color = chipColor(status);
-  // Strip newlines / tabs from `label` before truncating so a
-  // multi-line payload from any emitter can never split a chip
-  // across rows.
-  const label = truncateToWidth(oneLine(status.label), CHIP_LABEL_MAX_WIDTH, "…");
-  const progressSuffix = formatChipProgress(status.progress);
-  return `${icon} ${color}${label}${C_RESET}${progressSuffix}`;
+	const icon = chipIcon(status, set);
+	const color = chipColor(status);
+	// Strip newlines / tabs from `label` before truncating so a
+	// multi-line payload from any emitter can never split a chip
+	// across rows.
+	const label = truncateToWidth(
+		oneLine(status.label),
+		CHIP_LABEL_MAX_WIDTH,
+		"…",
+	);
+	const progressSuffix = formatChipProgress(status.progress);
+	return `${icon} ${color}${label}${C_RESET}${progressSuffix}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -222,43 +228,45 @@ export function formatChip(status: NotifyStatusEvent, set: IconSet): string {
 /** Stable list of all known block ids. Add to this when adding a
  *  new renderer and the migration path picks it up automatically. */
 export const KNOWN_BLOCK_IDS = [
-  "model",
-  "path",
-  "git",
-  "context",
-  "cost",
-  "tokens",
-  "rate",
-  "chips",
-  "stash",
+	"model",
+	"path",
+	"git",
+	"context",
+	"cost",
+	"tokens",
+	"rate",
+	"chips",
+	"stash",
 ] as const;
 
 export type BlockId = (typeof KNOWN_BLOCK_IDS)[number];
 
 /** Runtime set used by config normalisation. */
-export const KNOWN_BLOCK_ID_SET: ReadonlySet<BlockId> = new Set(KNOWN_BLOCK_IDS);
+export const KNOWN_BLOCK_ID_SET: ReadonlySet<BlockId> = new Set(
+	KNOWN_BLOCK_IDS,
+);
 
 /** Shared bundle every block renderer reads from. */
 export interface RenderInputs {
-  cwd: string;
-  branch: string | null;
-  dirty: boolean;
-  current: number;
-  contextWindow: number;
-  cost: number;
-  modelName: string;
-  thinkingLevel: string;
-  thinkingLevelMap: ThinkingLevelMap | undefined;
-  modelReasoning: boolean;
-  totalInput: number;
-  totalOutput: number;
-  totalCacheRead: number;
-  totalCacheWrite: number;
-  tokenRate: TokenRateSnapshot | null;
-  stashCount: number;
-  chips: NotifyStatusEvent[];
-  iconSet: IconSet;
-  layout: LayoutConfig;
+	cwd: string;
+	branch: string | null;
+	dirty: boolean;
+	current: number;
+	contextWindow: number;
+	cost: number;
+	modelName: string;
+	thinkingLevel: string;
+	thinkingLevelMap: ThinkingLevelMap | undefined;
+	modelReasoning: boolean;
+	totalInput: number;
+	totalOutput: number;
+	totalCacheRead: number;
+	totalCacheWrite: number;
+	tokenRate: TokenRateSnapshot | null;
+	stashCount: number;
+	chips: NotifyStatusEvent[];
+	iconSet: IconSet;
+	layout: LayoutConfig;
 }
 
 export type BlockRenderer = (inputs: RenderInputs) => string;
@@ -275,52 +283,55 @@ export type BlockRenderer = (inputs: RenderInputs) => string;
  * the model and never gets its own `│` separator.
  */
 const renderModel: BlockRenderer = (inputs) => {
-  const head = `${C_PINK}${resolveIcon(inputs.iconSet, "model")} ${inputs.modelName}${C_RESET}`;
-  if (!inputs.modelReasoning || !inputs.layout.model.showThinking) return head;
-  const label = resolveThinkingLabel(inputs.thinkingLevel, inputs.thinkingLevelMap);
-  const color = THINK_COLORS[inputs.thinkingLevel] ?? C_GRAY;
-  return `${head} ${color}${resolveIcon(inputs.iconSet, "thinking")} ${label}${C_RESET}`;
+	const head = `${C_PINK}${resolveIcon(inputs.iconSet, "model")} ${inputs.modelName}${C_RESET}`;
+	if (!inputs.modelReasoning || !inputs.layout.model.showThinking) return head;
+	const label = resolveThinkingLabel(
+		inputs.thinkingLevel,
+		inputs.thinkingLevelMap,
+	);
+	const color = THINK_COLORS[inputs.thinkingLevel] ?? C_GRAY;
+	return `${head} ${color}${resolveIcon(inputs.iconSet, "thinking")} ${label}${C_RESET}`;
 };
 
 /** `path` block — folder icon + `…/parent/dir` with the current directory accented. */
 const renderPath: BlockRenderer = (inputs) => {
-  const shortDir = shortenPath(inputs.cwd);
-  const dirParent = dirname(shortDir);
-  const dirName = basename(shortDir) || shortDir;
-  const icon = resolveIcon(inputs.iconSet, "folder");
-  return `${C_PURPLE}${icon}${C_RESET} ${C_GRAY}${dirParent}${C_RESET}${C_PURPLE}/${dirName}${C_RESET}`;
+	const shortDir = shortenPath(inputs.cwd);
+	const dirParent = dirname(shortDir);
+	const dirName = basename(shortDir) || shortDir;
+	const icon = resolveIcon(inputs.iconSet, "folder");
+	return `${C_PURPLE}${icon}${C_RESET} ${C_GRAY}${dirParent}${C_RESET}${C_PURPLE}/${dirName}${C_RESET}`;
 };
 
 /** `git` block — icon + branch + clean/dirty mark; empty outside a repo. */
 const renderGit: BlockRenderer = (inputs) => {
-  if (!inputs.branch) return "";
-  const mark = inputs.dirty ? `${C_RED}✗${C_RESET}` : `${C_GREEN}✓${C_RESET}`;
-  return `${C_CYAN}${resolveIcon(inputs.iconSet, "git")} ${inputs.branch} ${mark}`;
+	if (!inputs.branch) return "";
+	const mark = inputs.dirty ? `${C_RED}✗${C_RESET}` : `${C_GREEN}✓${C_RESET}`;
+	return `${C_CYAN}${resolveIcon(inputs.iconSet, "git")} ${inputs.branch} ${mark}`;
 };
 
 /** `context` block — `pct%: used[bar]remaining`; empty when no context window. */
 const renderContext: BlockRenderer = (inputs) => {
-  if (inputs.contextWindow <= 0) return "";
-  const threshold = Math.max(1, inputs.contextWindow - AUTOCOMPACT_BUFFER);
-  let pct = Math.floor((inputs.current * 100) / threshold);
-  let remaining = threshold - inputs.current;
-  if (remaining < 0) {
-    remaining = 0;
-    pct = 100;
-  }
-  if (pct < 0) pct = 0;
-  const color = pctColorFor(pct);
-  const bar = buildBar(pct, color);
-  return (
-    `${color}${pct}%${C_RESET}: ${formatTokens(inputs.current)}` +
-    `${C_GRAY}[${C_RESET}${bar}${C_GRAY}]${C_RESET}${formatTokens(remaining)}`
-  );
+	if (inputs.contextWindow <= 0) return "";
+	const threshold = Math.max(1, inputs.contextWindow - AUTOCOMPACT_BUFFER);
+	let pct = Math.floor((inputs.current * 100) / threshold);
+	let remaining = threshold - inputs.current;
+	if (remaining < 0) {
+		remaining = 0;
+		pct = 100;
+	}
+	if (pct < 0) pct = 0;
+	const color = pctColorFor(pct);
+	const bar = buildBar(pct, color);
+	return (
+		`${color}${pct}%${C_RESET}: ${formatTokens(inputs.current)}` +
+		`${C_GRAY}[${C_RESET}${bar}${C_GRAY}]${C_RESET}${formatTokens(remaining)}`
+	);
 };
 
 /** `cost` block — session total in USD; empty when zero. */
 const renderCost: BlockRenderer = (inputs) => {
-  if (inputs.cost <= 0) return "";
-  return `${C_GRAY}$${formatCost(inputs.cost)}${C_RESET}`;
+	if (inputs.cost <= 0) return "";
+	return `${C_GRAY}$${formatCost(inputs.cost)}${C_RESET}`;
 };
 
 /**
@@ -330,22 +341,28 @@ const renderCost: BlockRenderer = (inputs) => {
  * gated counter is empty.
  */
 const renderTokens: BlockRenderer = (inputs) => {
-  const t = inputs.layout.tokens;
-  const segments: string[] = [];
-  if (t.input && inputs.totalInput > 0) segments.push(`↑${formatTokens(inputs.totalInput)}`);
-  if (t.output && inputs.totalOutput > 0) segments.push(`↓${formatTokens(inputs.totalOutput)}`);
-  if (t.cacheRead && inputs.totalCacheRead > 0) segments.push(`R${formatTokens(inputs.totalCacheRead)}`);
-  if (t.cacheWrite && inputs.totalCacheWrite > 0) segments.push(`W${formatTokens(inputs.totalCacheWrite)}`);
-  if (segments.length === 0) return "";
-  return `${C_GRAY}${segments.join(" ")}${C_RESET}`;
+	const t = inputs.layout.tokens;
+	const segments: string[] = [];
+	if (t.input && inputs.totalInput > 0)
+		segments.push(`↑${formatTokens(inputs.totalInput)}`);
+	if (t.output && inputs.totalOutput > 0)
+		segments.push(`↓${formatTokens(inputs.totalOutput)}`);
+	if (t.cacheRead && inputs.totalCacheRead > 0)
+		segments.push(`R${formatTokens(inputs.totalCacheRead)}`);
+	if (t.cacheWrite && inputs.totalCacheWrite > 0)
+		segments.push(`W${formatTokens(inputs.totalCacheWrite)}`);
+	if (segments.length === 0) return "";
+	return `${C_GRAY}${segments.join(" ")}${C_RESET}`;
 };
 
-/** `rate` block — latest model output speed; empty until a stream has measured tokens. */
+/** `rate` block — latest model output speed; placeholder when enabled before the first stream. */
 const renderRate: BlockRenderer = (inputs) => {
-  if (!inputs.tokenRate) return "";
-  const rate = inputs.tokenRate.finalRate ?? rateFromTokenRateSnapshot(inputs.tokenRate);
-  const color = inputs.tokenRate.active ? C_BLUE : C_GREEN;
-  return `${color}${resolveIcon(inputs.iconSet, "rate")} ${formatTokenRate(rate)} tok/s${C_RESET}`;
+	if (!inputs.tokenRate)
+		return `${C_GRAY}${resolveIcon(inputs.iconSet, "rate")} -- tok/s${C_RESET}`;
+	const rate =
+		inputs.tokenRate.finalRate ?? rateFromTokenRateSnapshot(inputs.tokenRate);
+	const color = inputs.tokenRate.active ? C_BLUE : C_GREEN;
+	return `${color}${resolveIcon(inputs.iconSet, "rate")} ${formatTokenRate(rate)} tok/s${C_RESET}`;
 };
 
 /**
@@ -353,27 +370,29 @@ const renderRate: BlockRenderer = (inputs) => {
  * by ` · `. Returns "" when no chips are active.
  */
 const renderChips: BlockRenderer = (inputs) => {
-  if (inputs.chips.length === 0) return "";
-  return inputs.chips.map((c) => formatChip(c, inputs.iconSet)).join(` ${C_GRAY}·${C_RESET} `);
+	if (inputs.chips.length === 0) return "";
+	return inputs.chips
+		.map((c) => formatChip(c, inputs.iconSet))
+		.join(` ${C_GRAY}·${C_RESET} `);
 };
 
 /** `stash` block — `📦 N`; empty when nothing stashed. */
 const renderStash: BlockRenderer = (inputs) => {
-  if (inputs.stashCount <= 0) return "";
-  return `${C_YELLOW}${resolveIcon(inputs.iconSet, "stash")} ${inputs.stashCount}${C_RESET}`;
+	if (inputs.stashCount <= 0) return "";
+	return `${C_YELLOW}${resolveIcon(inputs.iconSet, "stash")} ${inputs.stashCount}${C_RESET}`;
 };
 
 /** Registry consulted by `composeStatusLine`. */
 export const BLOCK_RENDERERS: Record<BlockId, BlockRenderer> = {
-  model: renderModel,
-  path: renderPath,
-  git: renderGit,
-  context: renderContext,
-  cost: renderCost,
-  tokens: renderTokens,
-  rate: renderRate,
-  chips: renderChips,
-  stash: renderStash,
+	model: renderModel,
+	path: renderPath,
+	git: renderGit,
+	context: renderContext,
+	cost: renderCost,
+	tokens: renderTokens,
+	rate: renderRate,
+	chips: renderChips,
+	stash: renderStash,
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -387,16 +406,19 @@ export const BLOCK_RENDERERS: Record<BlockId, BlockRenderer> = {
  * so subsequent truncation logic in `renderStatusContent` matches the
  * historical output's tail.
  */
-export function composeStatusLine(layout: LayoutConfig, inputs: RenderInputs): string {
-  const parts: string[] = [];
-  for (const id of layout.order) {
-    if (!layout.enabled[id]) continue;
-    const renderer = BLOCK_RENDERERS[id];
-    if (!renderer) continue;
-    const piece = renderer(inputs);
-    if (piece.length === 0) continue;
-    parts.push(piece);
-  }
-  const sep = ` ${C_GRAY}${layout.separator}${C_RESET} `;
-  return `${C_GRAY}─${C_RESET} ${parts.join(sep)} `;
+export function composeStatusLine(
+	layout: LayoutConfig,
+	inputs: RenderInputs,
+): string {
+	const parts: string[] = [];
+	for (const id of layout.order) {
+		if (!layout.enabled[id]) continue;
+		const renderer = BLOCK_RENDERERS[id];
+		if (!renderer) continue;
+		const piece = renderer(inputs);
+		if (piece.length === 0) continue;
+		parts.push(piece);
+	}
+	const sep = ` ${C_GRAY}${layout.separator}${C_RESET} `;
+	return `${C_GRAY}─${C_RESET} ${parts.join(sep)} `;
 }
