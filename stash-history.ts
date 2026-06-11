@@ -7,8 +7,12 @@ import {
 	type TUI,
 } from "@earendil-works/pi-tui";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
+
+import {
+	getLegacyStatuslineDataPath,
+	getStatuslineDataPath,
+} from "./storage-paths.ts";
 
 const STASH_HISTORY_LIMIT = 12;
 const STASH_PREVIEW_WIDTH = 72;
@@ -18,14 +22,11 @@ export function hasNonWhitespaceText(text: string): boolean {
 }
 
 function getStashHistoryPath(): string {
-	const homeDir = process.env.HOME || process.env.USERPROFILE || homedir();
-	return join(
-		homeDir,
-		".pi",
-		"agent",
-		"wierd-statusline",
-		"stash-history.json",
-	);
+	return getStatuslineDataPath("stash-history.json");
+}
+
+function getLegacyStashHistoryPath(): string {
+	return getLegacyStatuslineDataPath("stash-history.json");
 }
 
 function normalizeStashHistoryEntries(value: unknown): string[] {
@@ -42,9 +43,21 @@ function normalizeStashHistoryEntries(value: unknown): string[] {
 }
 
 export function readPersistedStashHistory(): string[] {
-	const path = getStashHistoryPath();
+	const current = readStashHistoryFile(getStashHistoryPath());
+	if (current !== null) return current;
+
+	const legacy = readStashHistoryFile(getLegacyStashHistoryPath());
+	if (legacy !== null) {
+		persistStashHistory(legacy);
+		return legacy;
+	}
+
+	return [];
+}
+
+function readStashHistoryFile(path: string): string[] | null {
 	try {
-		if (!existsSync(path)) return [];
+		if (!existsSync(path)) return null;
 		const parsed = JSON.parse(readFileSync(path, "utf-8"));
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
 			return [];

@@ -214,16 +214,18 @@ When a compatible subagents extension emits `subagents:*` events, this statuslin
 
 ## Configuration files
 
-For compatibility with the upstream package, config is still stored under:
+This fork stores its settings under its own package-specific directory:
 
 ```text
-~/.pi/agent/wierd-statusline/
+~/.pi/agent/savagelands-net-pi-statusline/
 ```
 
 Important files:
 
 - `events.json` — display, placement, icon, layout, and event/toast settings.
 - `stash-history.json` — prompt stash history.
+
+If an older `~/.pi/agent/wierd-statusline/` file exists and no savagelands config exists yet, the fork imports it once into the new directory. Future writes stay in `savagelands-net-pi-statusline` so this package does not mutate upstream `@wierdbytes/pi-statusline` settings.
 
 ## Development
 

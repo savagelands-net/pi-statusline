@@ -53,6 +53,7 @@ import {
 import type { TokenRateSnapshot } from "./token-rate.ts";
 import { TokenRateCoordinator } from "./token-rate-coordinator.ts";
 import { StashController } from "./stash-controller.ts";
+import { STATUSLINE_WIDGET_ID } from "./statusline-identity.ts";
 
 const PROMPT_PADDING = 0;
 
@@ -346,7 +347,7 @@ function installStatusWidget(
 	getPlacement: () => StatusWidgetPlacement,
 ) {
 	ctx.ui.setWidget(
-		"wierd-statusline",
+		STATUSLINE_WIDGET_ID,
 		() => ({
 			dispose() {},
 			invalidate() {},
@@ -458,7 +459,7 @@ class StatuslineUiControls {
 
 	disable(ctx: ExtensionContext): void {
 		this.args.fixedEditorController.teardown();
-		ctx.ui.setWidget("wierd-statusline", undefined);
+		ctx.ui.setWidget(STATUSLINE_WIDGET_ID, undefined);
 		ctx.ui.setEditorComponent(undefined);
 		restorePiFooter(ctx);
 		this.args.stashController.clearShortcut();

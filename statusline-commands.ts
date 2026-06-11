@@ -321,7 +321,10 @@ function handleStatuslineSwitch(
 	const enabled = deps.getConfig().display.statuslineEnabled;
 	const next = action === "toggle" ? !enabled : action === "on";
 	deps.applyDisplayChange(ctx, { statuslineEnabled: next });
-	ctx.ui.notify(`wierd statusline ${next ? "enabled" : "disabled"}`, "info");
+	ctx.ui.notify(
+		`savagelands statusline ${next ? "enabled" : "disabled"}`,
+		"info",
+	);
 }
 
 function handlePlacementCommand(
@@ -416,7 +419,7 @@ export function registerStatuslineCommand(
 	const handlers = commandHandlers(deps);
 	pi.registerCommand("statusline", {
 		description:
-			"Open the @wierdbytes/pi-statusline settings overlay (no args). Action subcommands: on | off | toggle | status | placement [above|below] | icons [set] | rate [...] | layout [...] | events log | events clear",
+			"Open the @savagelands-net/pi-statusline settings overlay (no args). Action subcommands: on | off | toggle | status | placement [above|below] | icons [set] | rate [...] | layout [...] | events log | events clear",
 		handler: async (args, ctx) => {
 			deps.setCurrentContext(ctx);
 			const tokens = (args ?? "").trim().split(/\s+/).filter(Boolean);

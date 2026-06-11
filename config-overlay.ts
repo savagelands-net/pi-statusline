@@ -182,7 +182,7 @@ function buildDisplayFields(display: EventsConfig["display"]): Field[] {
 			type: "boolean",
 			tab: DISPLAY_TAB,
 			label: "Statusline enabled",
-			description: "Master switch for the wierd statusline widget.",
+			description: "Master switch for the savagelands statusline widget.",
 			value: display.statuslineEnabled,
 		},
 		{
@@ -445,7 +445,7 @@ export async function openStatuslineConfigOverlay(
 	}
 
 	await openSettingsModal(ctx, {
-		title: "@wierdbytes/pi-statusline",
+		title: "@savagelands-net/pi-statusline",
 		tabs: [
 			{ id: DISPLAY_TAB, label: "Display" },
 			{ id: LAYOUT_TAB, label: "Layout" },

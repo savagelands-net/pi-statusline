@@ -7,6 +7,7 @@ import {
 	type StatusWidgetPlacement,
 } from "./events-config.ts";
 import type { FixedEditorController } from "./fixed-editor/controller.ts";
+import { STATUSLINE_WIDGET_ID } from "./statusline-identity.ts";
 
 export interface DisplayState {
 	footerHidden: boolean;
@@ -106,7 +107,7 @@ function handlePlacementChange(
 	if (next.statusWidgetPlacement === state.statusWidgetPlacement) return;
 	state.statusWidgetPlacement = next.statusWidgetPlacement;
 	if (!state.statuslineEnabled) return;
-	ctx.ui.setWidget("wierd-statusline", undefined);
+	ctx.ui.setWidget(STATUSLINE_WIDGET_ID, undefined);
 	deps.mountStatusWidget(ctx);
 	deps.requestRender(true);
 	reinstallFixedEditor(ctx, state, deps);
